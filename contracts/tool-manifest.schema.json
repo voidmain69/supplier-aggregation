@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sa.internal/tool-manifest.schema.json",
+  "title": "Service AI tool manifest",
+  "description": "Declares which operations of a service are suitable as AI tools. Served at /.well-known/tool-manifest and aggregated by mcp-gateway.",
+  "type": "object",
+  "required": ["service", "tools"],
+  "additionalProperties": false,
+  "properties": {
+    "service": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "operation_id", "when_to_use", "safety", "cost_class"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "operation_id": { "type": "string", "description": "Must match an operationId in the service openapi.json" },
+          "when_to_use": { "type": "string", "minLength": 20 },
+          "when_not_to_use": { "type": "string" },
+          "safety": { "enum": ["read_only", "mutating"] },
+          "cost_class": { "enum": ["cheap", "moderate", "expensive"] },
+          "typical_latency_ms": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

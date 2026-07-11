@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sa.internal/events/supplier.offer.price-changed.json",
+  "title": "supplier.offer.price-changed",
+  "description": "Supplier's base price for (account x product) changed. Emitted only on an actual change vs. the previous synced value. Topic: sa.supplier.offer, key: offer_id.",
+  "type": "object",
+  "required": ["schema_version", "offer_id", "supplier_account_id", "supplier_product_id", "new_price", "currency", "observed_at", "sync_job_id"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "offer_id": { "type": "string", "description": "ULID of the Offer (supplier_account x supplier_product)" },
+    "supplier_account_id": { "type": "string" },
+    "supplier_product_id": { "type": "string" },
+    "old_price": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]+\\.[0-9]{1,4}$",
+      "description": "Previous base price as decimal string; null on first observation"
+    },
+    "new_price": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]{1,4}$",
+      "description": "New base price as decimal string (never float)"
+    },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$", "description": "ISO-4217, supplier settlement currency of this account" },
+    "price_uah": { "type": ["string", "null"], "pattern": "^[0-9]+\\.[0-9]{1,4}$" },
+    "rrp_uah": { "type": ["string", "null"], "pattern": "^[0-9]+\\.[0-9]{1,4}$", "description": "Recommended retail price if supplier provides it" },
+    "observed_at": { "type": "string", "format": "date-time", "description": "When the connector observed the new value at the supplier" },
+    "sync_job_id": { "type": "string" }
+  }
+}

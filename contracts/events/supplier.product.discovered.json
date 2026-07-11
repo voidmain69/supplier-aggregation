@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sa.internal/events/supplier.product.discovered.json",
+  "title": "supplier.product.discovered",
+  "description": "A connector saw a supplier product for the first time. Data is the normalized supplier product snapshot. Topic: sa.supplier.product, key: supplier_product_id.",
+  "type": "object",
+  "required": ["schema_version", "supplier_product_id", "supplier_code", "external_id", "name", "sync_job_id"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "supplier_product_id": { "type": "string", "description": "Internal ULID of the SupplierProduct" },
+    "supplier_code": { "type": "string", "description": "Supplier short code, e.g. 'brain'" },
+    "external_id": { "type": "string", "description": "Supplier's own product id (Brain: productID)" },
+    "external_code": { "type": ["string", "null"], "description": "Supplier's product code (Brain: product_code)" },
+    "articul": { "type": ["string", "null"], "description": "Manufacturer part number as provided by supplier" },
+    "gtin": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]{14}$",
+      "description": "Normalized GTIN-14 (from EAN/UPC), null if absent or checksum-invalid"
+    },
+    "raw_identifiers": {
+      "type": "object",
+      "description": "Original identifier strings before normalization (ean, upc, ...)",
+      "additionalProperties": { "type": "string" }
+    },
+    "name": { "type": "string" },
+    "brand": { "type": ["string", "null"] },
+    "supplier_category_id": { "type": ["string", "null"] },
+    "attributes": {
+      "type": "object",
+      "description": "Normalized attribute map (name -> value(s)) from supplier options"
+    },
+    "content_hash": { "type": "string", "description": "Hash of normalized content, used for change detection" },
+    "sync_job_id": { "type": "string", "description": "Sync job that produced this event" }
+  }
+}

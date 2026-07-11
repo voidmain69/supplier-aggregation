@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+jobs:
+  lint-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed for schema backward-compat check vs origin/main
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.12"
+
+      - name: Sync workspace
+        run: uv sync
+
+      - name: Ruff format & lint
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+
+      - name: Mypy
+        run: uv run mypy libs services tools
+        if: hashFiles('libs/**/*.py', 'services/**/*.py') != ''
+
+      - name: Conventions check
+        run: uv run python tools/check_conventions.py
+
+      - name: Event schemas check
+        run: uv run python tools/check_event_schemas.py
+
+      - name: OpenAPI lint (spectral)
+        run: |
+          if compgen -G "services/*/openapi.json" > /dev/null; then
+            npx --yes @stoplight/spectral-cli lint "services/*/openapi.json" --ruleset .spectral.yaml
+          else
+            echo "no exported openapi.json yet — skipping"
+          fi
+
+  tests:
+    runs-on: ubuntu-latest
+    needs: lint-and-check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.12"
+      - name: Sync workspace
+        run: uv sync
+      - name: Unit tests with coverage gate
+        run: |
+          if compgen -G "libs/*/tests" > /dev/null || compgen -G "services/*/tests" > /dev/null; then
+            uv run pytest -m "not integration and not live" --cov --cov-fail-under=75
+          else
+            echo "no tests yet — skipping"
+          fi
+      - name: Integration tests (testcontainers)
+        run: |
+          if compgen -G "services/*/tests" > /dev/null; then
+            uv run pytest -m integration
+          else
+            echo "no integration tests yet — skipping"
+          fi

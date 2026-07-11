@@ -1,0 +1,100 @@
+[project]
+name = "supplier-aggregation"
+version = "0.1.0"
+description = "Multi-supplier product aggregation platform (workspace root)"
+requires-python = ">=3.12,<3.13"
+
+[tool.uv.workspace]
+members = ["libs/*", "services/*"]
+
+[tool.uv]
+dev-dependencies = [
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5",
+    "import-linter>=2",
+    "pre-commit>=3.7",
+    "jsonschema>=4.22",
+]
+
+# ---------------------------------------------------------------------------
+# Ruff — single config for the whole monorepo
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["libs", "services", "tools"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",      # pycodestyle
+    "F",           # pyflakes
+    "I",           # isort
+    "B",           # bugbear
+    "C4",          # comprehensions
+    "UP",          # pyupgrade
+    "S",           # bandit (security)
+    "T20",         # no print
+    "DTZ",         # naive datetime forbidden
+    "ASYNC",       # async pitfalls
+    "RUF",
+    "PL",          # pylint subset
+]
+ignore = [
+    "PLR0913",     # too many args — Pydantic models/DI factories trigger this
+    "PLR2004",     # magic value in comparison — too noisy for tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "S105", "S106", "PLR"]   # assert + dummy creds allowed in tests
+"tools/**" = ["T20"]                              # CLI tools may print
+
+[tool.ruff.lint.isort]
+known-first-party = ["sa_core", "sa_contracts", "sa_connector_sdk", "sa_observability"]
+
+# ---------------------------------------------------------------------------
+# Mypy
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+show_error_codes = true
+plugins = ["pydantic.mypy"]
+mypy_path = ["libs", "services"]
+
+[[tool.mypy.overrides]]
+# adapters may talk to untyped third-party SDKs; keep the leak contained there
+module = "*.adapters.*"
+disallow_untyped_calls = false
+warn_return_any = false
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["libs", "services", "tools"]
+markers = [
+    "integration: needs docker (testcontainers)",
+    "live: hits a real supplier API — never run in CI",
+]
+addopts = "-m 'not live' --strict-markers"
+
+[tool.coverage.run]
+branch = true
+omit = ["**/tests/**", "**/migrations/**"]
+
+# ---------------------------------------------------------------------------
+# Import-linter — architectural boundaries
+# ---------------------------------------------------------------------------
+[tool.importlinter]
+root_packages = ["sa_core", "sa_contracts", "sa_connector_sdk", "sa_observability"]
+
+[[tool.importlinter.contracts]]
+name = "libs must not depend on services"
+type = "forbidden"
+source_modules = ["sa_core", "sa_contracts", "sa_connector_sdk", "sa_observability"]
+forbidden_modules = ["services"]

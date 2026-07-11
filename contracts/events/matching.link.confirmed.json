@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sa.internal/events/matching.link.confirmed.json",
+  "title": "matching.link.confirmed",
+  "description": "An operator (or the deterministic GTIN pass) confirmed a SupplierProduct -> CanonicalProduct link. Topic: sa.matching.link, key: supplier_product_id.",
+  "type": "object",
+  "required": ["schema_version", "link_id", "supplier_product_id", "canonical_product_id", "method", "confidence", "decided_by", "decided_at"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "link_id": { "type": "string" },
+    "supplier_product_id": { "type": "string" },
+    "canonical_product_id": { "type": "string" },
+    "method": {
+      "enum": ["gtin_auto", "rag_suggested", "manual"],
+      "description": "How the candidate was produced. gtin_auto links are auto-confirmed; others require an operator."
+    },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "decided_by": {
+      "type": "string",
+      "description": "Operator user id, or 'system' for gtin_auto"
+    },
+    "decided_at": { "type": "string", "format": "date-time" },
+    "previous_canonical_product_id": {
+      "type": ["string", "null"],
+      "description": "Set when the confirmation re-links the product from another canonical (merge/split flows)"
+    }
+  }
+}

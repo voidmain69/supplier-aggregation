@@ -1,0 +1,55 @@
+# Spectral ruleset — OpenAPI lint incl. AI-Ready requirements (docs/standards/api-guidelines.md)
+extends: ["spectral:oas"]
+
+rules:
+  # --- AI-Ready: every operation/parameter/property must carry an LLM-quality description
+  sa-operation-description:
+    description: Every operation needs a meaningful description (written for LLM consumers).
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      - field: description
+        function: truthy
+      - field: description
+        function: length
+        functionOptions:
+          min: 40
+
+  sa-parameter-description:
+    description: Every parameter needs a description with semantics/units/example.
+    severity: error
+    given: "$..parameters[*]"
+    then:
+      field: description
+      function: truthy
+
+  sa-operation-id:
+    description: operationId required (referenced by tool_manifest.json).
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: operationId
+      function: truthy
+
+  sa-problem-json-errors:
+    description: 4xx/5xx responses must be application/problem+json (RFC 9457).
+    severity: error
+    given: "$.paths[*][*].responses[?(@property.match(/^[45]/))].content"
+    then:
+      field: application/problem+json
+      function: truthy
+
+  sa-security-declared:
+    description: Every operation must declare security scopes.
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: security
+      function: truthy
+
+  sa-no-offset-pagination:
+    description: Offset pagination is forbidden — use cursor pagination.
+    severity: error
+    given: "$..parameters[?(@.name == 'offset')]"
+    then:
+      function: falsy

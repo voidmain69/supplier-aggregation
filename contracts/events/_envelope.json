@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sa.internal/events/_envelope.json",
+  "title": "CloudEvents 1.0 envelope for all platform events",
+  "type": "object",
+  "required": ["specversion", "id", "source", "type", "time", "subject", "dataschema", "data"],
+  "properties": {
+    "specversion": { "const": "1.0" },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID, unique per event. Consumers deduplicate on this."
+    },
+    "source": {
+      "type": "string",
+      "pattern": "^//sa/[a-z0-9-]+$",
+      "description": "Producing service, e.g. //sa/connector-brain"
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z]+\\.[a-z-]+\\.[a-z-]+$",
+      "description": "<domain>.<entity>.<past-tense-action>, e.g. supplier.offer.price-changed"
+    },
+    "time": { "type": "string", "format": "date-time" },
+    "subject": {
+      "type": "string",
+      "description": "Aggregate id (also used as Kafka partition key)"
+    },
+    "dataschema": {
+      "type": "string",
+      "description": "URI of the JSON Schema the data payload validates against"
+    },
+    "traceparent": {
+      "type": "string",
+      "description": "W3C trace context for cross-service tracing"
+    },
+    "data": { "type": "object" }
+  }
+}
