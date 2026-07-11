@@ -75,7 +75,7 @@ def create_app() -> FastAPI:
     return app
 '''
 
-SETTINGS = '''\
+SETTINGS = """\
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     otlp_endpoint: str = "http://localhost:4317"
     # db_dsn: str
     # kafka_bootstrap: str = "localhost:19092"
-'''
+"""
 
 DOCKERFILE = """\
 FROM python:3.12-slim AS base
@@ -96,7 +96,7 @@ RUN uv sync --no-dev --frozen || uv sync --no-dev
 COPY src ./src
 RUN useradd -m app
 USER app
-CMD ["uv", "run", "uvicorn", "{pkg}.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv","run","uvicorn","{pkg}.main:create_app","--factory","--host","0.0.0.0","--port","8000"]
 """
 
 README = """\
@@ -140,7 +140,9 @@ def main() -> int:
 
     (svc / "pyproject.toml").write_text(PYPROJECT.format(name=name, pkg=pkg), encoding="utf-8")
     (svc / "src" / pkg / "main.py").write_text(MAIN.format(pkg=pkg, name=name), encoding="utf-8")
-    (svc / "src" / pkg / "settings.py").write_text(SETTINGS.format(env_prefix=env_prefix), encoding="utf-8")
+    (svc / "src" / pkg / "settings.py").write_text(
+        SETTINGS.format(env_prefix=env_prefix), encoding="utf-8"
+    )
     (svc / "Dockerfile").write_text(DOCKERFILE.format(pkg=pkg), encoding="utf-8")
     (svc / "README.md").write_text(README.format(name=name), encoding="utf-8")
     (svc / "tool_manifest.json").write_text(

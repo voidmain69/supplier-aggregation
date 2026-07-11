@@ -56,7 +56,9 @@ def check_tool_manifest(svc: Path) -> None:
     manifest_path = svc / "tool_manifest.json"
     if not manifest_path.exists():
         return
-    schema = json.loads((ROOT / "contracts" / "tool-manifest.schema.json").read_text(encoding="utf-8"))
+    schema = json.loads(
+        (ROOT / "contracts" / "tool-manifest.schema.json").read_text(encoding="utf-8")
+    )
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -77,8 +79,10 @@ def check_tool_manifest(svc: Path) -> None:
         }
         for tool in manifest.get("tools", []):
             if tool.get("operation_id") not in op_ids:
-                fail(f"{svc.name}: tool '{tool.get('name')}' references unknown operationId "
-                     f"'{tool.get('operation_id')}'")
+                fail(
+                    f"{svc.name}: tool '{tool.get('name')}' references unknown operationId "
+                    f"'{tool.get('operation_id')}'"
+                )
 
 
 IMPORT_RE = re.compile(r"^\s*(?:from|import)\s+([a-zA-Z_][a-zA-Z0-9_]*)", re.MULTILINE)
@@ -92,8 +96,10 @@ def check_cross_service_imports(svc: Path, packages: dict[str, str]) -> None:
         for match in IMPORT_RE.finditer(text):
             top = match.group(1)
             if top in other_pkgs and top != own_pkg:
-                fail(f"{svc.name}: {py.relative_to(svc)} imports another service's package '{top}' "
-                     f"— services communicate only via events or generated clients")
+                fail(
+                    f"{svc.name}: {py.relative_to(svc)} imports another service's package '{top}' "
+                    f"— services communicate only via events or generated clients"
+                )
 
 
 def check_no_env_files() -> None:

@@ -3,7 +3,7 @@
 Checks:
   1. Every schema is valid JSON Schema (draft 2020-12).
   2. File name matches the `title` and the <domain>.<entity>.<past-action> convention.
-  3. `schema_version` const is present and payloads forbid unknown fields (additionalProperties: false).
+  3. `schema_version` const is present; payloads forbid unknown fields.
   4. Backward compatibility vs. the version on `main` (if git is available):
      removing required fields, removing properties or changing a property type is a breaking change.
 
@@ -33,9 +33,12 @@ def fail(path: Path, msg: str) -> None:
 
 def load_main_version(rel_path: str) -> dict | None:
     try:
-        out = subprocess.run(
-            ["git", "show", f"origin/main:{rel_path}"],
-            capture_output=True, text=True, cwd=ROOT, check=False,
+        out = subprocess.run(  # noqa: S603 -- fixed git argv, no user input
+            ["git", "show", f"origin/main:{rel_path}"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            check=False,
         )
         if out.returncode != 0:
             return None
@@ -51,7 +54,8 @@ def check_compatibility(path: Path, old: dict, new: dict) -> None:
         if name not in new_props:
             fail(path, f"BREAKING: property '{name}' was removed")
         elif spec.get("type") != new_props[name].get("type") and "enum" not in spec:
-            fail(path, f"BREAKING: property '{name}' changed type {spec.get('type')} -> {new_props[name].get('type')}")
+            old_t, new_t = spec.get("type"), new_props[name].get("type")
+            fail(path, f"BREAKING: property '{name}' changed type {old_t} -> {new_t}")
         elif "enum" in spec:
             removed = set(spec["enum"]) - set(new_props[name].get("enum", []))
             if removed:
@@ -61,6 +65,21 @@ def check_compatibility(path: Path, old: dict, new: dict) -> None:
     for req in new_required:
         if req in added_props:
             fail(path, f"BREAKING: new property '{req}' must be optional, not required")
+
+
+def check_conventions(path: Path, schema: dict) -> None:
+    name = path.stem
+    if not TYPE_RE.match(name):
+        fail(path, "file name must be <domain>.<entity>.<past-tense-action>.json")
+    if schema.get("title") != name:
+        fail(path, f"schema title '{schema.get('title')}' must equal file name '{name}'")
+    props = schema.get("properties", {})
+    if "schema_version" not in props or "const" not in props.get("schema_version", {}):
+        fail(path, "payload must declare 'schema_version' with a const value")
+    if schema.get("additionalProperties") is not False:
+        fail(path, "payload schemas must set additionalProperties: false")
+    if not schema.get("description"):
+        fail(path, "schema must have a description (topic, key, semantics) — LLMs read it too")
 
 
 def main() -> int:
@@ -82,22 +101,10 @@ def main() -> int:
             fail(path, f"invalid JSON Schema: {exc}")
             continue
 
-        name = path.stem
-        if name.startswith("_"):  # envelope and other meta files
+        if path.stem.startswith("_"):  # envelope and other meta files
             continue
 
-        if not TYPE_RE.match(name):
-            fail(path, "file name must be <domain>.<entity>.<past-tense-action>.json")
-        if schema.get("title") != name:
-            fail(path, f"schema title '{schema.get('title')}' must equal file name '{name}'")
-        props = schema.get("properties", {})
-        if "schema_version" not in props or "const" not in props.get("schema_version", {}):
-            fail(path, "payload must declare 'schema_version' with a const value")
-        if schema.get("additionalProperties") is not False:
-            fail(path, "payload schemas must set additionalProperties: false")
-        if not schema.get("description"):
-            fail(path, "schema must have a description (topic, key, semantics) — it is read by LLMs too")
-
+        check_conventions(path, schema)
         old = load_main_version(str(path.relative_to(ROOT)).replace("\\", "/"))
         if old is not None:
             check_compatibility(path, old, schema)
