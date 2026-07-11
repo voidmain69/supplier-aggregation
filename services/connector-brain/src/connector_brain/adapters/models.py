@@ -27,3 +27,20 @@ class SupplierProductIdentity(Base):
     supplier_product_id: Mapped[str] = mapped_column(String(26), unique=True)
     content_hash: Mapped[str] = mapped_column(String(64))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class OfferIdentity(Base):
+    """Stable ``offer_id`` per (account, product) plus the last observed price.
+
+    The last price/currency drive change detection so we emit ``supplier.offer.price-changed``
+    only when the price actually moved.
+    """
+
+    __tablename__ = "offer_identity"
+
+    supplier_account_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    external_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    offer_id: Mapped[str] = mapped_column(String(26), unique=True)
+    last_price: Mapped[str] = mapped_column(String(32))
+    last_currency: Mapped[str] = mapped_column(String(3))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
