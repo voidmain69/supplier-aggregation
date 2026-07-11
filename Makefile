@@ -8,10 +8,14 @@ up:
 down:
 	docker compose -f infra/compose.yaml down
 
+# Add new packages here (and in .github/workflows/ci.yml) as they are created.
+MYPY_PACKAGES = -p sa_core -p sa_contracts -p sa_observability -p sa_connector_sdk \
+	-p sa_persistence -p sa_messaging -p connector_brain -p catalog
+
 lint:
 	uv run ruff format --check .
 	uv run ruff check .
-	uv run mypy libs services
+	uv run mypy $(MYPY_PACKAGES)
 	uv run lint-imports
 
 test:
