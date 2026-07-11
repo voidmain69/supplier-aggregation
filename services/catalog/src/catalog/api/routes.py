@@ -4,14 +4,18 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from catalog.adapters.repository import get_supplier_product, list_supplier_products
 from catalog.api.deps import get_session
-from catalog.api.schemas import SupplierProductOut
+from catalog.api.schemas import Problem, SupplierProductOut
 from sa_core.errors import NotFoundError
 from sa_core.pagination import Page
+
+_NOT_FOUND: dict[int | str, dict[str, object]] = {
+    404: {"model": Problem, "description": "No supplier product with that id."}
+}
 
 router = APIRouter(prefix="/v1", tags=["supplier-products"])
 
@@ -51,9 +55,12 @@ async def list_products(
     summary="Get one supplier product",
     description="Fetch a single supplier product by its internal supplier_product_id (ULID).",
     response_model=SupplierProductOut,
+    responses=_NOT_FOUND,
 )
 async def get_product(
-    supplier_product_id: str,
+    supplier_product_id: Annotated[
+        str, Path(description="Internal supplier_product_id (ULID) from a list response.")
+    ],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SupplierProductOut:
     row = await get_supplier_product(session, supplier_product_id)

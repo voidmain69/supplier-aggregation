@@ -38,6 +38,14 @@ jobs:
       - name: Event schemas check
         run: uv run python tools/check_event_schemas.py
 
+      - name: OpenAPI export up to date
+        run: |
+          uv run python tools/export_openapi.py
+          if ! git diff --exit-code -- 'services/*/openapi.json'; then
+            echo "::error::openapi.json is stale — run 'make openapi' and commit the diff"
+            exit 1
+          fi
+
       - name: OpenAPI lint (spectral)
         run: |
           if compgen -G "services/*/openapi.json" > /dev/null; then

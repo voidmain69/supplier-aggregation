@@ -1,0 +1,433 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "catalog",
+    "description": "Catalog service. Owns supplier products (ingested from events) and the canonical catalog. Query it for products by supplier, code or GTIN.",
+    "contact": {
+      "name": "Supplier Aggregation Platform",
+      "email": "Info_DIT@erc.ua"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/supplier-products": {
+      "get": {
+        "tags": [
+          "supplier-products"
+        ],
+        "summary": "List supplier products",
+        "description": "List supplier products the catalog has ingested, newest-id first. Cursor paginated: pass the returned next_cursor to fetch the following page. Filter by supplier with the 'supplier' query param.",
+        "operationId": "listSupplierProducts",
+        "parameters": [
+          {
+            "name": "supplier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by supplier code, e.g. 'brain'.",
+              "title": "Supplier"
+            },
+            "description": "Filter by supplier code, e.g. 'brain'."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous response's next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque cursor from a previous response's next_cursor."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Max items per page (1-200, default 50).",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Max items per page (1-200, default 50)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_SupplierProductOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/supplier-products/{supplier_product_id}": {
+      "get": {
+        "tags": [
+          "supplier-products"
+        ],
+        "summary": "Get one supplier product",
+        "description": "Fetch a single supplier product by its internal supplier_product_id (ULID).",
+        "operationId": "getSupplierProduct",
+        "parameters": [
+          {
+            "name": "supplier_product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Internal supplier_product_id (ULID) from a list response.",
+              "title": "Supplier Product Id"
+            },
+            "description": "Internal supplier_product_id (ULID) from a list response."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierProductOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No supplier product with that id.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Page_SupplierProductOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SupplierProductOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "total_estimate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Estimate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "Page[SupplierProductOut]"
+      },
+      "Problem": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Stable URI identifying the error type."
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Short, human-readable summary of the error type."
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "HTTP status code."
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "Human/LLM-readable explanation with a next step."
+          },
+          "instance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instance",
+            "description": "URI of the specific occurrence."
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "Trace id to correlate with telemetry."
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail"
+        ],
+        "title": "Problem",
+        "description": "RFC 9457 problem+json error body (returned on 4xx/5xx)."
+      },
+      "SupplierProductOut": {
+        "properties": {
+          "supplier_product_id": {
+            "type": "string",
+            "title": "Supplier Product Id",
+            "description": "Stable internal ULID of this supplier product. Use it in GET /v1/supplier-products/{id} and as the cursor anchor."
+          },
+          "supplier_code": {
+            "type": "string",
+            "title": "Supplier Code",
+            "description": "Short code of the supplier, e.g. 'brain'."
+          },
+          "external_id": {
+            "type": "string",
+            "title": "External Id",
+            "description": "The supplier's own product id (opaque to us)."
+          },
+          "external_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Code",
+            "description": "The supplier's human product code, if any."
+          },
+          "articul": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Articul",
+            "description": "Manufacturer part number (MPN)."
+          },
+          "gtin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gtin",
+            "description": "Normalized GTIN-14 (from EAN/UPC), or null if absent/invalid. Use it to match the same product across suppliers."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Product name as provided by the supplier."
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand",
+            "description": "Brand/vendor name, if known."
+          },
+          "supplier_category_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Category Id",
+            "description": "The supplier's category id for this product."
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes",
+            "description": "Normalized attribute map (name -> value or list of values)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "supplier_product_id",
+          "supplier_code",
+          "external_id",
+          "name"
+        ],
+        "title": "SupplierProductOut",
+        "description": "A single supplier product as held by the catalog."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Service API key or OIDC token, issued/validated by the API gateway."
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "supplier-products",
+      "description": "Supplier products ingested by the catalog."
+    }
+  ],
+  "servers": [
+    {
+      "url": "/",
+      "description": "This service (behind the API gateway)."
+    }
+  ]
+}

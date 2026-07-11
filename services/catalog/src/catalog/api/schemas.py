@@ -7,6 +7,17 @@ from pydantic import BaseModel, Field
 from catalog.adapters.models import SupplierProductRow
 
 
+class Problem(BaseModel):
+    """RFC 9457 problem+json error body (returned on 4xx/5xx)."""
+
+    type: str = Field(description="Stable URI identifying the error type.")
+    title: str = Field(description="Short, human-readable summary of the error type.")
+    status: int = Field(description="HTTP status code.")
+    detail: str = Field(description="Human/LLM-readable explanation with a next step.")
+    instance: str | None = Field(default=None, description="URI of the specific occurrence.")
+    trace_id: str | None = Field(default=None, description="Trace id to correlate with telemetry.")
+
+
 class SupplierProductOut(BaseModel):
     """A single supplier product as held by the catalog."""
 
