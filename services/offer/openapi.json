@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "catalog",
-    "description": "Catalog service. Owns supplier products (ingested from events) and the canonical catalog. Query it for products by supplier, code or GTIN.",
+    "title": "offer",
+    "description": "Offer service. Owns supplier offers (prices/availability per account), ingested from events. Query offers for a product or the cheapest offer.",
     "contact": {
       "name": "Supplier Aggregation Platform",
       "email": "Info_DIT@erc.ua"
@@ -10,32 +10,25 @@
     "version": "0.1.0"
   },
   "paths": {
-    "/v1/supplier-products": {
+    "/v1/offers": {
       "get": {
         "tags": [
-          "supplier-products"
+          "offers"
         ],
-        "summary": "List supplier products",
-        "description": "List supplier products the catalog has ingested, newest-id first. Cursor paginated: pass the returned next_cursor to fetch the following page. Filter by supplier with the 'supplier' query param.",
-        "operationId": "listSupplierProducts",
+        "summary": "List offers for a product",
+        "description": "List all supplier offers (one per account) for a product, identified by supplier_product_id. Cursor paginated. To get the cheapest, use /v1/offers/best.",
+        "operationId": "listOffers",
         "parameters": [
           {
-            "name": "supplier",
+            "name": "supplier_product_id",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by supplier code, e.g. 'brain'.",
-              "title": "Supplier"
+              "type": "string",
+              "description": "Internal product id (ULID) to list offers for.",
+              "title": "Supplier Product Id"
             },
-            "description": "Filter by supplier code, e.g. 'brain'."
+            "description": "Internal product id (ULID) to list offers for."
           },
           {
             "name": "cursor",
@@ -76,7 +69,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page_SupplierProductOut_"
+                  "$ref": "#/components/schemas/Page_OfferOut_"
                 }
               }
             }
@@ -99,25 +92,25 @@
         ]
       }
     },
-    "/v1/supplier-products/{supplier_product_id}": {
+    "/v1/offers/best": {
       "get": {
         "tags": [
-          "supplier-products"
+          "offers"
         ],
-        "summary": "Get one supplier product",
-        "description": "Fetch a single supplier product by its internal supplier_product_id (ULID).",
-        "operationId": "getSupplierProduct",
+        "summary": "Get the cheapest offer for a product",
+        "description": "Return the cheapest offer (lowest UAH price) for a product across all suppliers and accounts. 404 if the product has no offer with a UAH price.",
+        "operationId": "getBestOffer",
         "parameters": [
           {
             "name": "supplier_product_id",
-            "in": "path",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Internal supplier_product_id (ULID) from a list response.",
+              "description": "Internal product id (ULID) to price.",
               "title": "Supplier Product Id"
             },
-            "description": "Internal supplier_product_id (ULID) from a list response."
+            "description": "Internal product id (ULID) to price."
           }
         ],
         "responses": {
@@ -126,13 +119,73 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SupplierProductOut"
+                  "$ref": "#/components/schemas/OfferOut"
                 }
               }
             }
           },
           "404": {
-            "description": "No supplier product with that id.",
+            "description": "No matching offer.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/offers/{offer_id}": {
+      "get": {
+        "tags": [
+          "offers"
+        ],
+        "summary": "Get one offer",
+        "description": "Fetch a single offer by its internal offer_id (ULID).",
+        "operationId": "getOffer",
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Internal offer_id (ULID) from a list response.",
+              "title": "Offer Id"
+            },
+            "description": "Internal offer_id (ULID) from a list response."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No matching offer.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -175,11 +228,80 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
-      "Page_SupplierProductOut_": {
+      "OfferOut": {
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "title": "Offer Id",
+            "description": "Stable internal ULID of this offer."
+          },
+          "supplier_account_id": {
+            "type": "string",
+            "title": "Supplier Account Id",
+            "description": "Internal id of the supplier account this price belongs to."
+          },
+          "supplier_product_id": {
+            "type": "string",
+            "title": "Supplier Product Id",
+            "description": "Internal id of the product this offer prices. Filter offers by it."
+          },
+          "price": {
+            "type": "string",
+            "title": "Price",
+            "description": "Supplier base price, decimal string, in `currency`."
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "description": "ISO-4217 code of `price` (the account's settlement currency)."
+          },
+          "price_uah": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Uah",
+            "description": "Price converted to UAH (decimal string), or null. Used to rank offers."
+          },
+          "rrp_uah": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rrp Uah",
+            "description": "Recommended retail price in UAH, if the supplier provides it."
+          },
+          "observed_at": {
+            "type": "string",
+            "title": "Observed At",
+            "description": "When the connector last observed this price (UTC)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "offer_id",
+          "supplier_account_id",
+          "supplier_product_id",
+          "price",
+          "currency",
+          "observed_at"
+        ],
+        "title": "OfferOut",
+        "description": "One supplier offer: a price for a product under a supplier account."
+      },
+      "Page_OfferOut_": {
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/SupplierProductOut"
+              "$ref": "#/components/schemas/OfferOut"
             },
             "type": "array",
             "title": "Items"
@@ -211,7 +333,7 @@
         "required": [
           "items"
         ],
-        "title": "Page[SupplierProductOut]"
+        "title": "Page[OfferOut]"
       },
       "Problem": {
         "properties": {
@@ -270,105 +392,6 @@
         "title": "Problem",
         "description": "RFC 9457 problem+json error body (returned on 4xx/5xx)."
       },
-      "SupplierProductOut": {
-        "properties": {
-          "supplier_product_id": {
-            "type": "string",
-            "title": "Supplier Product Id",
-            "description": "Stable internal ULID of this supplier product. Use it in GET /v1/supplier-products/{id} and as the cursor anchor."
-          },
-          "supplier_code": {
-            "type": "string",
-            "title": "Supplier Code",
-            "description": "Short code of the supplier, e.g. 'brain'."
-          },
-          "external_id": {
-            "type": "string",
-            "title": "External Id",
-            "description": "The supplier's own product id (opaque to us)."
-          },
-          "external_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "External Code",
-            "description": "The supplier's human product code, if any."
-          },
-          "articul": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Articul",
-            "description": "Manufacturer part number (MPN)."
-          },
-          "gtin": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Gtin",
-            "description": "Normalized GTIN-14 (from EAN/UPC), or null if absent/invalid. Use it to match the same product across suppliers."
-          },
-          "name": {
-            "type": "string",
-            "title": "Name",
-            "description": "Product name as provided by the supplier."
-          },
-          "brand": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Brand",
-            "description": "Brand/vendor name, if known."
-          },
-          "supplier_category_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Supplier Category Id",
-            "description": "The supplier's category id for this product."
-          },
-          "attributes": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Attributes",
-            "description": "Normalized attribute map (name -> value or list of values)."
-          }
-        },
-        "type": "object",
-        "required": [
-          "supplier_product_id",
-          "supplier_code",
-          "external_id",
-          "name"
-        ],
-        "title": "SupplierProductOut",
-        "description": "A single supplier product as held by the catalog."
-      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -426,7 +449,7 @@
   ],
   "tags": [
     {
-      "name": "supplier-products"
+      "name": "offers"
     }
   ]
 }

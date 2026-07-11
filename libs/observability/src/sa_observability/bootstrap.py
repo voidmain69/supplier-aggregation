@@ -14,6 +14,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from sa_observability.errors import install_error_handlers
 from sa_observability.health import HealthRegistry, add_health_routes
 from sa_observability.logging import configure_logging, get_logger
+from sa_observability.openapi import build_openapi
 from sa_observability.tracing import setup_telemetry
 
 
@@ -46,6 +47,9 @@ def bootstrap(
         pass
 
     install_error_handlers(app)
+    # AI-ready OpenAPI (security, problem+json, …) applied lazily, so routes added after
+    # bootstrap are still included when /openapi.json is generated.
+    app.openapi = lambda: build_openapi(app)  # type: ignore[method-assign]
     registry = health or HealthRegistry()
     add_health_routes(app, registry)
 
