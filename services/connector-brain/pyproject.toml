@@ -13,6 +13,7 @@ dependencies = [
     "sa-contracts",
     "sa-observability",
     "sa-connector-sdk",
+    "sa-persistence",
 ]
 
 [tool.uv.sources]
@@ -20,6 +21,7 @@ sa-core = { workspace = true }
 sa-contracts = { workspace = true }
 sa-observability = { workspace = true }
 sa-connector-sdk = { workspace = true }
+sa-persistence = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

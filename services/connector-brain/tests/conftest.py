@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+import re
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import Any
 
@@ -9,10 +10,16 @@ import httpx
 import pytest
 from connector_brain.adapters.brain_client import BrainClient, StaticCredentialResolver
 from connector_brain.connector import BrainConnector
+from connector_brain.db import create_schema
 from connector_brain.settings import Settings
+from sa_persistence.db import create_engine, create_session_factory
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 from sa_connector_sdk.dto import AccountCtx
 from sa_connector_sdk.raw_archive import InMemoryRawArchive
+
+SessionFactory = async_sessionmaker[AsyncSession]
 
 FIXTURES = Path(__file__).parent / "fixtures" / "brain"
 
@@ -88,6 +95,32 @@ def fake_brain(brain_fixtures: dict[str, Any]) -> FakeBrain:
 @pytest.fixture
 def account() -> AccountCtx:
     return ACCOUNT
+
+
+@pytest.fixture
+async def sqlite_session_factory() -> AsyncIterator[SessionFactory]:
+    """Fresh in-memory SQLite with the service schema, for fast DB unit tests."""
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+    await create_schema(engine)
+    yield create_session_factory(engine)
+    await engine.dispose()
+
+
+@pytest.fixture
+async def pg_session_factory() -> AsyncIterator[SessionFactory]:
+    """The service schema on a real Postgres (testcontainers) — for @integration tests."""
+    from testcontainers.postgres import PostgresContainer  # noqa: PLC0415
+
+    with PostgresContainer("postgres:16-alpine") as postgres:
+        dsn = re.sub(r"^postgresql\+?\w*", "postgresql+asyncpg", postgres.get_connection_url())
+        engine = create_engine(dsn)
+        await create_schema(engine)
+        yield create_session_factory(engine)
+        await engine.dispose()
 
 
 ConnectorBuilder = Callable[..., tuple[BrainConnector, InMemoryRawArchive]]
