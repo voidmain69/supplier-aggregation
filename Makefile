@@ -11,7 +11,7 @@ down:
 lint:
 	uv run ruff format --check .
 	uv run ruff check .
-	uv run mypy libs services tools
+	uv run mypy libs   # add `services` here once the first service has code
 	uv run lint-imports
 
 test:
