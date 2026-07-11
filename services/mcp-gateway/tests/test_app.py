@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import httpx
-
 from mcp_gateway.main import create_app
 
 
