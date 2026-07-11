@@ -10,7 +10,7 @@ down:
 
 # Add new packages here (and in .github/workflows/ci.yml) as they are created.
 MYPY_PACKAGES = -p sa_core -p sa_contracts -p sa_observability -p sa_connector_sdk \
-	-p sa_persistence -p sa_messaging -p connector_brain -p catalog -p offer
+	-p sa_persistence -p sa_messaging -p connector_brain -p catalog -p offer -p mcp_gateway
 
 lint:
 	uv run ruff format --check .

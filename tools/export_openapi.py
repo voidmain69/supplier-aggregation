@@ -40,7 +40,10 @@ def main() -> int:
         if create_app is None:
             continue
 
-        schema = create_app().openapi()
+        app = create_app()
+        if not hasattr(app, "openapi"):
+            continue  # not a REST app (e.g. the MCP gateway) — no OpenAPI to export
+        schema = app.openapi()
         if not schema.get("paths"):
             continue  # no public API surface (e.g. a connector) — nothing to export
 

@@ -29,7 +29,7 @@ jobs:
         # Check by installed package name (each ships py.typed). Keep in sync with the Makefile.
         run: >
           uv run mypy -p sa_core -p sa_contracts -p sa_observability -p sa_connector_sdk
-          -p sa_persistence -p sa_messaging -p connector_brain -p catalog -p offer
+          -p sa_persistence -p sa_messaging -p connector_brain -p catalog -p offer -p mcp_gateway
         if: hashFiles('libs/**/*.py', 'services/**/*.py') != ''
 
       - name: Conventions check
