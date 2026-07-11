@@ -73,7 +73,12 @@ plugins = ["pydantic.mypy"]
 # their real dotted name (libs/core/src/sa_core/ids.py -> sa_core.ids). Extend this list
 # when a new lib/service is added.
 explicit_package_bases = true
-mypy_path = ["libs/core/src", "libs/contracts/src", "libs/observability/src"]
+mypy_path = [
+    "libs/core/src",
+    "libs/contracts/src",
+    "libs/observability/src",
+    "libs/connector-sdk/src",
+]
 exclude = ["/tests/", "/migrations/"]
 
 [[tool.mypy.overrides]]
@@ -105,23 +110,29 @@ omit = ["**/tests/**", "**/migrations/**"]
 # ---------------------------------------------------------------------------
 # List packages here as they are created (sa_connector_sdk, sa_observability, …).
 [tool.importlinter]
-root_packages = ["sa_core", "sa_contracts", "sa_observability"]
+root_packages = ["sa_core", "sa_contracts", "sa_observability", "sa_connector_sdk"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "libs must not depend on services"
 type = "forbidden"
-source_modules = ["sa_core", "sa_contracts", "sa_observability"]
+source_modules = ["sa_core", "sa_contracts", "sa_observability", "sa_connector_sdk"]
 forbidden_modules = ["services"]
 
 [[tool.importlinter.contracts]]
 name = "core is the lowest layer (must not import other sa libs)"
 type = "forbidden"
 source_modules = ["sa_core"]
-forbidden_modules = ["sa_contracts", "sa_observability"]
+forbidden_modules = ["sa_contracts", "sa_observability", "sa_connector_sdk"]
 
 [[tool.importlinter.contracts]]
 name = "contracts must not depend on observability"
 type = "forbidden"
 source_modules = ["sa_contracts"]
 forbidden_modules = ["sa_observability"]
+
+[[tool.importlinter.contracts]]
+name = "connector-sdk depends only on core (not contracts/observability)"
+type = "forbidden"
+source_modules = ["sa_connector_sdk"]
+forbidden_modules = ["sa_contracts", "sa_observability"]
