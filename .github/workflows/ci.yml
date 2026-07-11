@@ -26,7 +26,7 @@ jobs:
           uv run ruff check .
 
       - name: Mypy
-        run: uv run mypy libs   # add `services` here once the first service has code
+        run: uv run mypy libs services
         if: hashFiles('libs/**/*.py', 'services/**/*.py') != ''
 
       - name: Conventions check
@@ -62,8 +62,8 @@ jobs:
           fi
       - name: Integration tests (testcontainers)
         run: |
-          if compgen -G "services/*/tests" > /dev/null; then
-            uv run pytest -m integration
-          else
-            echo "no integration tests yet — skipping"
-          fi
+          set +e
+          uv run pytest -m integration
+          rc=$?
+          # exit code 5 = no tests collected (no integration tests yet) — not a failure
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 5 ]; then exit "$rc"; fi

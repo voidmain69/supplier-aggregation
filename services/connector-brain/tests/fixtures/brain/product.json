@@ -1,0 +1,23 @@
+{
+  "productID": 100463720,
+  "product_code": "U1005797",
+  "articul": "TUF GAMING B850-PLUS WIFI",
+  "vendorID": 5,
+  "EAN": "4711387781609",
+  "name": "Материнська плата ASUS TUF GAMING B850-PLUS WIFI",
+  "categoryID": 1264,
+  "price": "222.22",
+  "price_uah": "9900.00",
+  "retail_price_uah": "9999.00",
+  "available": { "1": 3, "121": 2 },
+  "stocks": [1, 121],
+  "stocks_expected": { "19": "2026-07-15 07:30:00" },
+  "date_modified": "2026-07-11 09:26:36",
+  "full_image": "https://opt.brain.com.ua/static/images/prod_img/9/7/U1005797_main.jpg",
+  "options": [
+    { "name": "Виробник", "value": "ASUS", "optionID": "3" },
+    { "name": "Сокет", "value": "AM5", "optionID": "1388" },
+    { "name": "Слоти розширення", "value": "1 x PCI-E 4.0 x16", "optionID": "1383" },
+    { "name": "Слоти розширення", "value": "2 x PCI-E 4.0 x1", "optionID": "1383" }
+  ]
+}

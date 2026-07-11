@@ -1,0 +1,29 @@
+[project]
+name = "connector-brain"
+version = "0.1.0"
+description = "Brain (api.brain.com.ua) supplier connector: catalog, prices and availability -> canonical DTOs"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "httpx>=0.27",
+    "sa-core",
+    "sa-contracts",
+    "sa-observability",
+    "sa-connector-sdk",
+]
+
+[tool.uv.sources]
+sa-core = { workspace = true }
+sa-contracts = { workspace = true }
+sa-observability = { workspace = true }
+sa-connector-sdk = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/connector_brain"]
