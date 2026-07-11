@@ -6,6 +6,7 @@ Kafka. Consumer helpers land alongside the first event consumer (catalog).
 
 from __future__ import annotations
 
+from sa_messaging.consumer import EventHandler, KafkaEventConsumer
 from sa_messaging.kafka import KafkaPublisher
 
-__all__ = ["KafkaPublisher"]
+__all__ = ["EventHandler", "KafkaEventConsumer", "KafkaPublisher"]
