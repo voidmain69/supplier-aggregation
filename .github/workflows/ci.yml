@@ -26,7 +26,10 @@ jobs:
           uv run ruff check .
 
       - name: Mypy
-        run: uv run mypy libs services
+        # Check by installed package name (each ships py.typed). Keep in sync with the Makefile.
+        run: >
+          uv run mypy -p sa_core -p sa_contracts -p sa_observability -p sa_connector_sdk
+          -p sa_persistence -p sa_messaging -p connector_brain -p catalog
         if: hashFiles('libs/**/*.py', 'services/**/*.py') != ''
 
       - name: Conventions check

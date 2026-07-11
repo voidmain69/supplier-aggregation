@@ -71,20 +71,8 @@ strict = true
 warn_unreachable = true
 show_error_codes = true
 plugins = ["pydantic.mypy"]
-# src-layout packages: each package's src/ dir is a module base so files resolve to
-# their real dotted name (libs/core/src/sa_core/ids.py -> sa_core.ids). Extend this list
-# when a new lib/service is added.
-explicit_package_bases = true
-mypy_path = [
-    "libs/core/src",
-    "libs/contracts/src",
-    "libs/observability/src",
-    "libs/connector-sdk/src",
-    "libs/persistence/src",
-    "libs/messaging/src",
-    "services/connector-brain/src",
-]
-exclude = ["/tests/", "/migrations/"]
+# Type-checked by installed package name (see `make lint` / CI): every workspace package
+# ships a py.typed marker, so `mypy -p <pkg>` analyzes its source and skips its tests.
 
 [[tool.mypy.overrides]]
 # adapters may talk to untyped third-party SDKs; keep the leak contained there
