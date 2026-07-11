@@ -1,4 +1,23 @@
 {
   "service": "catalog",
-  "tools": []
+  "tools": [
+    {
+      "name": "list_supplier_products",
+      "operation_id": "listSupplierProducts",
+      "when_to_use": "Browse or page through supplier products the catalog has ingested; optionally filter by supplier code.",
+      "when_not_to_use": "Fetching one product you already have the id for (use get_supplier_product), or prices/availability (use the offer service).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 100
+    },
+    {
+      "name": "get_supplier_product",
+      "operation_id": "getSupplierProduct",
+      "when_to_use": "Fetch a single supplier product by its internal supplier_product_id (ULID).",
+      "when_not_to_use": "Searching or listing without an id (use list_supplier_products).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 50
+    }
+  ]
 }
