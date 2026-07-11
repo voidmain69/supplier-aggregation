@@ -17,6 +17,7 @@ dev = [
     "import-linter>=2",
     "pre-commit>=3.7",
     "jsonschema>=4.22",
+    "datamodel-code-generator>=0.68",   # `make contracts`: models from contracts/events/*.json
 ]
 
 # ---------------------------------------------------------------------------
@@ -50,6 +51,9 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101", "S105", "S106", "PLR"]   # assert + dummy creds allowed in tests
 "tools/**" = ["T20"]                              # CLI tools may print
+# Generated from contracts/events/*.json — long lines are verbatim LLM-facing descriptions.
+"libs/contracts/src/sa_contracts/events/*" = ["E501"]
+"libs/contracts/src/sa_contracts/registry.py" = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["sa_core", "sa_contracts", "sa_connector_sdk", "sa_observability"]
@@ -67,7 +71,7 @@ plugins = ["pydantic.mypy"]
 # their real dotted name (libs/core/src/sa_core/ids.py -> sa_core.ids). Extend this list
 # when a new lib/service is added.
 explicit_package_bases = true
-mypy_path = ["libs/core/src"]
+mypy_path = ["libs/core/src", "libs/contracts/src"]
 exclude = ["/tests/", "/migrations/"]
 
 [[tool.mypy.overrides]]
@@ -96,13 +100,19 @@ omit = ["**/tests/**", "**/migrations/**"]
 # ---------------------------------------------------------------------------
 # Import-linter — architectural boundaries
 # ---------------------------------------------------------------------------
-# List packages here as they are created (sa_contracts, sa_connector_sdk, sa_observability, …).
+# List packages here as they are created (sa_connector_sdk, sa_observability, …).
 [tool.importlinter]
-root_packages = ["sa_core"]
+root_packages = ["sa_core", "sa_contracts"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "libs must not depend on services"
 type = "forbidden"
-source_modules = ["sa_core"]
+source_modules = ["sa_core", "sa_contracts"]
 forbidden_modules = ["services"]
+
+[[tool.importlinter.contracts]]
+name = "core is the lowest layer (must not import other sa libs)"
+type = "forbidden"
+source_modules = ["sa_core"]
+forbidden_modules = ["sa_contracts"]
