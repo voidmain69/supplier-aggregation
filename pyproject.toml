@@ -78,6 +78,7 @@ mypy_path = [
     "libs/contracts/src",
     "libs/observability/src",
     "libs/connector-sdk/src",
+    "services/connector-brain/src",
 ]
 exclude = ["/tests/", "/migrations/"]
 

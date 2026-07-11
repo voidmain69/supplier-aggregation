@@ -26,7 +26,7 @@ jobs:
           uv run ruff check .
 
       - name: Mypy
-        run: uv run mypy libs   # add `services` here once the first service has code
+        run: uv run mypy libs services
         if: hashFiles('libs/**/*.py', 'services/**/*.py') != ''
 
       - name: Conventions check
