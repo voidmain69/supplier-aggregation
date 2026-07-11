@@ -18,6 +18,8 @@ dev = [
     "pre-commit>=3.7",
     "jsonschema>=4.22",
     "datamodel-code-generator>=0.68",   # `make contracts`: models from contracts/events/*.json
+    "httpx>=0.27",                      # FastAPI TestClient + httpx instrumentation in tests
+    "opentelemetry-instrumentation-httpx>=0.46b0",
 ]
 
 # ---------------------------------------------------------------------------
@@ -71,7 +73,7 @@ plugins = ["pydantic.mypy"]
 # their real dotted name (libs/core/src/sa_core/ids.py -> sa_core.ids). Extend this list
 # when a new lib/service is added.
 explicit_package_bases = true
-mypy_path = ["libs/core/src", "libs/contracts/src"]
+mypy_path = ["libs/core/src", "libs/contracts/src", "libs/observability/src"]
 exclude = ["/tests/", "/migrations/"]
 
 [[tool.mypy.overrides]]
@@ -90,7 +92,8 @@ markers = [
     "integration: needs docker (testcontainers)",
     "live: hits a real supplier API — never run in CI",
 ]
-addopts = "-m 'not live' --strict-markers"
+# importlib mode lets same-named test files (test_errors.py) coexist across packages.
+addopts = "-m 'not live' --strict-markers --import-mode=importlib"
 
 [tool.coverage.run]
 branch = true
@@ -102,17 +105,23 @@ omit = ["**/tests/**", "**/migrations/**"]
 # ---------------------------------------------------------------------------
 # List packages here as they are created (sa_connector_sdk, sa_observability, …).
 [tool.importlinter]
-root_packages = ["sa_core", "sa_contracts"]
+root_packages = ["sa_core", "sa_contracts", "sa_observability"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "libs must not depend on services"
 type = "forbidden"
-source_modules = ["sa_core", "sa_contracts"]
+source_modules = ["sa_core", "sa_contracts", "sa_observability"]
 forbidden_modules = ["services"]
 
 [[tool.importlinter.contracts]]
 name = "core is the lowest layer (must not import other sa libs)"
 type = "forbidden"
 source_modules = ["sa_core"]
-forbidden_modules = ["sa_contracts"]
+forbidden_modules = ["sa_contracts", "sa_observability"]
+
+[[tool.importlinter.contracts]]
+name = "contracts must not depend on observability"
+type = "forbidden"
+source_modules = ["sa_contracts"]
+forbidden_modules = ["sa_observability"]
