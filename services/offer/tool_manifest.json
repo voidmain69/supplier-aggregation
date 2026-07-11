@@ -1,0 +1,32 @@
+{
+  "service": "offer",
+  "tools": [
+    {
+      "name": "list_offers",
+      "operation_id": "listOffers",
+      "when_to_use": "See all supplier offers (one per account) for a product by its supplier_product_id.",
+      "when_not_to_use": "You just want the cheapest price (use get_best_offer), or product content/attributes (use the catalog service).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 100
+    },
+    {
+      "name": "get_best_offer",
+      "operation_id": "getBestOffer",
+      "when_to_use": "Get the cheapest offer (lowest UAH price) for a product across all suppliers and accounts.",
+      "when_not_to_use": "You need the full list of offers (use list_offers).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 60
+    },
+    {
+      "name": "get_offer",
+      "operation_id": "getOffer",
+      "when_to_use": "Fetch a single offer by its internal offer_id (ULID).",
+      "when_not_to_use": "You only have a product id (use list_offers).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 50
+    }
+  ]
+}
