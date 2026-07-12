@@ -158,6 +158,217 @@
           }
         ]
       }
+    },
+    "/v1/curation/queue": {
+      "get": {
+        "tags": [
+          "curation"
+        ],
+        "summary": "List the matching curation queue",
+        "description": "Supplier→canonical links awaiting an operator decision (status pending_review), oldest first. Cursor paginated. Confirm or reject each via the endpoints below.",
+        "operationId": "listCurationQueue",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous response's next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque cursor from a previous response's next_cursor."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Max items per page (1-200, default 50).",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Max items per page (1-200, default 50)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_CurationItemOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/curation/links/{supplier_product_id}/confirm": {
+      "post": {
+        "tags": [
+          "curation"
+        ],
+        "summary": "Confirm a suggested match",
+        "description": "Confirm the suggested canonical for a supplier product. Marks the link confirmed (and the canonical, if it was a draft) and emits matching.link.confirmed. Idempotent: confirming an already-confirmed link is a no-op.",
+        "operationId": "confirmLink",
+        "parameters": [
+          {
+            "name": "supplier_product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Supplier product id (ULID) to confirm.",
+              "title": "Supplier Product Id"
+            },
+            "description": "Supplier product id (ULID) to confirm."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkDecisionOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such curation item.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Item already decided.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/curation/links/{supplier_product_id}/reject": {
+      "post": {
+        "tags": [
+          "curation"
+        ],
+        "summary": "Reject a suggested match",
+        "description": "Reject the suggested canonical for a supplier product. Idempotent: rejecting an already-rejected link is a no-op. A confirmed link cannot be rejected.",
+        "operationId": "rejectLink",
+        "parameters": [
+          {
+            "name": "supplier_product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Supplier product id (ULID) to reject.",
+              "title": "Supplier Product Id"
+            },
+            "description": "Supplier product id (ULID) to reject."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkDecisionOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such curation item.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Item already decided.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -207,6 +418,45 @@
         "title": "CanonicalProductOut",
         "description": "A canonical (platform) product that aggregates supplier products."
       },
+      "CurationItemOut": {
+        "properties": {
+          "supplier_product_id": {
+            "type": "string",
+            "title": "Supplier Product Id",
+            "description": "The supplier product to be matched (ULID)."
+          },
+          "canonical_product_id": {
+            "type": "string",
+            "title": "Canonical Product Id",
+            "description": "The suggested canonical product (an existing one, or a fresh draft)."
+          },
+          "method": {
+            "type": "string",
+            "title": "Method",
+            "description": "How the candidate was produced (e.g. 'rag_suggested')."
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence",
+            "description": "Candidate score in [0,1]; higher = stronger match."
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Link status; items in the queue are 'pending_review'."
+          }
+        },
+        "type": "object",
+        "required": [
+          "supplier_product_id",
+          "canonical_product_id",
+          "method",
+          "confidence",
+          "status"
+        ],
+        "title": "CurationItemOut",
+        "description": "A supplier→canonical link awaiting an operator decision."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -219,6 +469,33 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "LinkDecisionOut": {
+        "properties": {
+          "supplier_product_id": {
+            "type": "string",
+            "title": "Supplier Product Id",
+            "description": "The supplier product that was decided."
+          },
+          "canonical_product_id": {
+            "type": "string",
+            "title": "Canonical Product Id",
+            "description": "The canonical product it maps to."
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "New link status: 'confirmed' or 'rejected'."
+          }
+        },
+        "type": "object",
+        "required": [
+          "supplier_product_id",
+          "canonical_product_id",
+          "status"
+        ],
+        "title": "LinkDecisionOut",
+        "description": "Result of confirming or rejecting a curation item."
       },
       "Page_CanonicalProductOut_": {
         "properties": {
@@ -257,6 +534,44 @@
           "items"
         ],
         "title": "Page[CanonicalProductOut]"
+      },
+      "Page_CurationItemOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CurationItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "total_estimate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Estimate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "Page[CurationItemOut]"
       },
       "Problem": {
         "properties": {
@@ -373,6 +688,9 @@
   "tags": [
     {
       "name": "canonical-products"
+    },
+    {
+      "name": "curation"
     }
   ]
 }

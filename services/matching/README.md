@@ -1,8 +1,9 @@
 # matching
 
 Owns the **canonical catalog** and the mapping from supplier products to canonical
-products. This slice does the deterministic **GTIN auto-link**; RAG candidates + operator
-curation are a follow-up.
+products. It does the deterministic **GTIN auto-link** and **candidate generation + operator
+curation** for products without a GTIN (lexical similarity now; semantic pgvector/RAG is
+a follow-up that swaps the scorer).
 
 Two processes (separate deployments):
 - **API** (`matching.main:create_app`) — read endpoints under `/v1`.
@@ -15,6 +16,9 @@ Two processes (separate deployments):
 |---|---|---|
 | GET | `/v1/canonical-products?gtin=` | List canonical products (cursor pagination, GTIN filter) |
 | GET | `/v1/canonical-products/{id}` | Fetch one; 404 as RFC 9457 problem+json |
+| GET | `/v1/curation/queue` | Matches awaiting an operator decision (pending_review) |
+| POST | `/v1/curation/links/{spid}/confirm` | Confirm a suggested match (emits link.confirmed) |
+| POST | `/v1/curation/links/{spid}/reject` | Reject a suggested match |
 
 ## Events
 

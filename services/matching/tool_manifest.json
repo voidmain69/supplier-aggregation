@@ -18,6 +18,33 @@
       "safety": "read_only",
       "cost_class": "cheap",
       "typical_latency_ms": 50
+    },
+    {
+      "name": "list_curation_queue",
+      "operation_id": "listCurationQueue",
+      "when_to_use": "Review supplier products awaiting an operator match decision (pending_review).",
+      "when_not_to_use": "Automated GTIN matches (they need no review) or normal product lookups.",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 100
+    },
+    {
+      "name": "confirm_link",
+      "operation_id": "confirmLink",
+      "when_to_use": "Operator confirms a suggested supplier->canonical match; emits the confirmation.",
+      "when_not_to_use": "Read-only browsing; automated GTIN matching.",
+      "safety": "mutating",
+      "cost_class": "cheap",
+      "typical_latency_ms": 80
+    },
+    {
+      "name": "reject_link",
+      "operation_id": "rejectLink",
+      "when_to_use": "Operator rejects a suggested supplier->canonical match.",
+      "when_not_to_use": "Read-only browsing; automated GTIN matching.",
+      "safety": "mutating",
+      "cost_class": "cheap",
+      "typical_latency_ms": 80
     }
   ]
 }

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from matching.adapters.models import CanonicalProductRow, ProductLinkRow
+from matching.adapters.models import CanonicalProductRow
 from matching.adapters.repository import get_link
 from matching.events.handlers import build_discovered_handler
 from sa_persistence.relay import InMemoryPublisher, OutboxRelay
@@ -55,18 +55,18 @@ async def test_handler__same_gtin_links_to_same_canonical(
     assert link1.canonical_product_id == link2.canonical_product_id
 
 
-async def test_handler__no_gtin_is_skipped(
+async def test_handler__no_gtin_stages_pending_review_without_emitting(
     sqlite_session_factory: SessionFactory, discovered_event: Callable[..., dict[str, Any]]
 ) -> None:
     handler = build_discovered_handler(sqlite_session_factory)
     await handler(discovered_event(supplier_product_id="01J0000000000000000PROD1", gtin=None))
 
-    assert await _canonical_count(sqlite_session_factory) == 0
     async with sqlite_session_factory() as session:
-        assert await get_link(session, "01J0000000000000000PROD1") is None
-        # no event emitted
-        rows = await session.execute(select(func.count()).select_from(ProductLinkRow))
-        assert rows.scalar_one() == 0
+        link = await get_link(session, "01J0000000000000000PROD1")
+    assert link is not None
+    assert link.status == "pending_review"  # queued for the operator, not auto-linked
+    # nothing published until the operator confirms
+    assert await OutboxRelay(sqlite_session_factory, InMemoryPublisher()).drain() == 0
 
 
 async def test_handler__idempotent_on_redelivery(

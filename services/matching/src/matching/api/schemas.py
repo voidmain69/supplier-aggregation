@@ -36,3 +36,23 @@ class CanonicalProductOut(BaseModel):
             brand=row.brand,
             title=row.title,
         )
+
+
+class CurationItemOut(BaseModel):
+    """A supplier→canonical link awaiting an operator decision."""
+
+    supplier_product_id: str = Field(description="The supplier product to be matched (ULID).")
+    canonical_product_id: str = Field(
+        description="The suggested canonical product (an existing one, or a fresh draft)."
+    )
+    method: str = Field(description="How the candidate was produced (e.g. 'rag_suggested').")
+    confidence: float = Field(description="Candidate score in [0,1]; higher = stronger match.")
+    status: str = Field(description="Link status; items in the queue are 'pending_review'.")
+
+
+class LinkDecisionOut(BaseModel):
+    """Result of confirming or rejecting a curation item."""
+
+    supplier_product_id: str = Field(description="The supplier product that was decided.")
+    canonical_product_id: str = Field(description="The canonical product it maps to.")
+    status: str = Field(description="New link status: 'confirmed' or 'rejected'.")

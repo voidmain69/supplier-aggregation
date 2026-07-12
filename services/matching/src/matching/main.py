@@ -7,6 +7,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from sa_persistence.db import create_engine, create_session_factory
 
+from matching.api.curation import router as curation_router
 from matching.api.routes import router
 from matching.settings import Settings
 from sa_observability import bootstrap
@@ -25,4 +26,5 @@ def create_app() -> FastAPI:
     app.state.session_factory = create_session_factory(create_engine(settings.db_dsn))
     bootstrap(app, service_name="matching", env=settings.env, otlp_endpoint=settings.otlp_endpoint)
     app.include_router(router)
+    app.include_router(curation_router)
     return app
