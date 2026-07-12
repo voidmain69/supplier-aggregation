@@ -13,6 +13,7 @@ dependencies = [
     "sa-contracts",
     "sa-observability",
     "sa-connector-sdk",
+    "alembic>=1.13",
     "sa-persistence",
 ]
 

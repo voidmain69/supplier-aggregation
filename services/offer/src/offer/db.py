@@ -1,4 +1,9 @@
-"""Offer database wiring (schema create for tests/local; Alembic is a follow-up)."""
+"""Offer database wiring.
+
+``create_schema`` builds the tables directly — the fast path for unit tests and local runs.
+Production applies the migrations instead: ``alembic -c services/offer/alembic.ini upgrade
+head`` (or ``make migrate svc=offer``).
+"""
 
 from __future__ import annotations
 

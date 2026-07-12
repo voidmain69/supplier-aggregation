@@ -1,8 +1,9 @@
 """Service database wiring.
 
-Registers the service's tables on the shared persistence ``Base`` and creates them. Used
-by tests and local runs; production schema management via Alembic is a follow-up (the
-change is purely additive: the ``outbox`` and ``supplier_product_identity`` tables).
+Registers the service's tables on the shared persistence ``Base``. ``create_schema`` builds
+them directly — the fast path for unit tests and local runs. Production applies the
+migrations instead: ``alembic -c services/connector-brain/alembic.ini upgrade head`` (or
+``make migrate svc=connector-brain``).
 """
 
 from __future__ import annotations

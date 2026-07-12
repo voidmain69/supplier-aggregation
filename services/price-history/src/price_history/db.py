@@ -1,8 +1,10 @@
 """Price-history database wiring.
 
-Creates the tables and, when TimescaleDB is available (production), turns ``price_point``
-into a hypertable partitioned by ``ts``. On plain Postgres or SQLite (tests) that step is
-skipped — the table works identically, just without the time-series optimizations.
+``create_schema`` builds the tables directly (fast path for unit tests and local runs) and,
+when TimescaleDB is available, turns ``price_point`` into a hypertable partitioned by ``ts``.
+On plain Postgres or SQLite that step is skipped — the table works identically. Production
+applies the migrations instead — ``alembic -c services/price-history/alembic.ini upgrade
+head`` (or ``make migrate svc=price-history``) — which carries the same hypertable step.
 """
 
 from __future__ import annotations
