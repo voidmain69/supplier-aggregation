@@ -5,12 +5,32 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 import pytest
-from sa_messaging.consumer import KafkaEventConsumer
+from sa_messaging.consumer import KafkaEventConsumer, dlq_topic_for
 
 
 class _Msg:
-    def __init__(self, value: bytes) -> None:
+    def __init__(
+        self,
+        value: bytes,
+        *,
+        topic: str = "sa.supplier.offer",
+        key: bytes | None = b"agg-1",
+        headers: list[tuple[str, bytes]] | None = None,
+    ) -> None:
         self.value = value
+        self.topic = topic
+        self.key = key
+        self.headers = headers or [("ce-id", b"01JA")]
+
+
+class _RecordingSink:
+    def __init__(self) -> None:
+        self.sent: list[dict[str, Any]] = []
+
+    async def send_raw(
+        self, *, topic: str, key: bytes | None, value: bytes, headers: list[tuple[str, bytes]]
+    ) -> None:
+        self.sent.append({"topic": topic, "key": key, "value": value, "headers": headers})
 
 
 class _FakeConsumer:
@@ -73,8 +93,119 @@ async def test_consume__before_start__raises() -> None:
         await consumer.consume(_collector([]))
 
 
+async def test_dispatch__handler_recovers_before_retries_exhausted__commits_no_dlq() -> None:
+    fake = _FakeConsumer([{"id": "1"}])
+    sink = _RecordingSink()
+    calls = {"n": 0}
+
+    async def flaky(_: dict[str, Any]) -> None:
+        calls["n"] += 1
+        if calls["n"] < 2:
+            raise ValueError("transient")
+
+    consumer = KafkaEventConsumer(
+        "localhost:9092",
+        group_id="g",
+        topics=["t"],
+        consumer_factory=lambda: fake,
+        dlq_sink=sink,
+        retry_backoffs=(0.0, 0.0),
+        sleep=_no_sleep,
+    )
+    async with consumer:
+        await consumer.consume(flaky)
+
+    assert calls["n"] == 2  # failed once, succeeded on retry
+    assert sink.sent == []  # never dead-lettered
+    assert fake.commits == 1
+
+
+async def test_dispatch__retries_exhausted__routes_to_dlq_and_commits() -> None:
+    fake = _FakeConsumer([{"id": "1"}])
+    sink = _RecordingSink()
+
+    async def always_fails(_: dict[str, Any]) -> None:
+        raise ValueError("boom")
+
+    consumer = KafkaEventConsumer(
+        "localhost:9092",
+        group_id="g",
+        topics=["t"],
+        consumer_factory=lambda: fake,
+        dlq_sink=sink,
+        retry_backoffs=(0.0, 0.0),  # 1 initial + 2 retries = 3 attempts
+        sleep=_no_sleep,
+    )
+    async with consumer:
+        processed = await consumer.consume(always_fails)
+
+    assert processed == 1
+    assert fake.commits == 1  # committed so the poison message cannot wedge the partition
+    assert len(sink.sent) == 1
+    dead = sink.sent[0]
+    assert dead["topic"] == dlq_topic_for("sa.supplier.offer")
+    assert dead["key"] == b"agg-1"
+    assert dead["value"] == json.dumps({"id": "1"}).encode()
+    header = dict(dead["headers"])
+    assert header["ce-id"] == b"01JA"  # original headers preserved
+    assert header["x-attempts"] == b"3"
+    assert header["x-original-topic"] == b"sa.supplier.offer"
+    assert b"boom" in header["x-failure-reason"]
+
+
+async def test_dispatch__no_dlq_sink__reraises_after_retries() -> None:
+    fake = _FakeConsumer([{"id": "1"}])
+
+    async def always_fails(_: dict[str, Any]) -> None:
+        raise ValueError("boom")
+
+    consumer = KafkaEventConsumer(
+        "localhost:9092",
+        group_id="g",
+        topics=["t"],
+        consumer_factory=lambda: fake,
+        retry_backoffs=(0.0,),
+        sleep=_no_sleep,
+    )
+    async with consumer:
+        with pytest.raises(ValueError, match="boom"):
+            await consumer.consume(always_fails)
+
+    assert fake.commits == 0  # not committed: fail-loud so the partition stalls for a human
+
+
+async def test_dispatch__applies_backoff_between_retries() -> None:
+    fake = _FakeConsumer([{"id": "1"}])
+    sink = _RecordingSink()
+    slept: list[float] = []
+
+    async def record_sleep(delay: float) -> None:
+        slept.append(delay)
+
+    async def always_fails(_: dict[str, Any]) -> None:
+        raise ValueError("boom")
+
+    consumer = KafkaEventConsumer(
+        "localhost:9092",
+        group_id="g",
+        topics=["t"],
+        consumer_factory=lambda: fake,
+        dlq_sink=sink,
+        retry_backoffs=(1.0, 10.0, 60.0),
+        sleep=record_sleep,
+    )
+    async with consumer:
+        await consumer.consume(always_fails)
+
+    assert slept == [1.0, 10.0, 60.0]  # backoff before each of the three retries
+
+
 def _collector(sink: list[dict[str, Any]]) -> Any:
     async def _handle(envelope: dict[str, Any]) -> None:
         sink.append(envelope)
 
     return _handle
+
+
+async def _no_sleep(_: float) -> None:
+    return None

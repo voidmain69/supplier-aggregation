@@ -17,7 +17,13 @@ from aiokafka import AIOKafkaProducer
 class _Producer(Protocol):
     async def start(self) -> None: ...
     async def stop(self) -> None: ...
-    async def send_and_wait(self, topic: str, value: bytes, key: bytes | None = ...) -> Any: ...
+    async def send_and_wait(
+        self,
+        topic: str,
+        value: bytes,
+        key: bytes | None = ...,
+        headers: list[tuple[str, bytes]] | None = ...,
+    ) -> Any: ...
 
 
 ProducerFactory = Callable[[], _Producer]
@@ -65,6 +71,19 @@ class KafkaPublisher:
         if self._producer is None:
             raise RuntimeError("KafkaPublisher not started; use `async with` or call start()")
         await self._producer.send_and_wait(topic, value=_encode(payload), key=key.encode("utf-8"))
+
+    async def send_raw(
+        self,
+        *,
+        topic: str,
+        key: bytes | None,
+        value: bytes,
+        headers: list[tuple[str, bytes]],
+    ) -> None:
+        """Publish an already-encoded message verbatim (used to dead-letter a failed event)."""
+        if self._producer is None:
+            raise RuntimeError("KafkaPublisher not started; use `async with` or call start()")
+        await self._producer.send_and_wait(topic, value=value, key=key, headers=headers)
 
     async def __aenter__(self) -> KafkaPublisher:
         await self.start()
