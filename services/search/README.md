@@ -1,8 +1,8 @@
 # search
 
 Finds products for people and agents. Owns a **search index** of products, built from supplier
-product events, and serves **lexical** search (free text over name/brand/articul/codes) plus exact
-lookups by code, articul and GTIN.
+product events, and serves **lexical** search (free text over name/brand/articul/codes),
+**semantic** search (natural-language, by meaning) and exact lookups by code, articul and GTIN.
 
 Two processes (separate deployments):
 - **API** (`search.main:create_app`) — query endpoints under `/v1`.
@@ -11,17 +11,24 @@ Two processes (separate deployments):
 
 ## Search model
 
-A document's `search_text` is the lowercased, tokenized bag of its name, brand, articul and
-codes. A query is tokenized the same way and **every token must appear** (AND), via portable
-`LIKE` matching. On PostgreSQL a `pg_trgm` GIN index keeps this fast (installed by the migration);
-SQLite (tests) uses the same query without the index. Exact lookups compare identifiers directly;
-GTIN is normalized to GTIN-14 first.
+**Lexical**: a document's `search_text` is the lowercased, tokenized bag of its name, brand,
+articul and codes; a query is tokenized the same way and **every token must appear** (AND), via
+portable `LIKE`. On PostgreSQL a `pg_trgm` GIN index keeps this fast (installed by the migration);
+SQLite (tests) uses the same query without the index.
+
+**Semantic**: each product carries an embedding of `brand + name`; a natural-language query is
+embedded and matched by cosine nearest-neighbour (pgvector `<=>` on Postgres, computed in Python
+on SQLite). The `Embedder` protocol is the seam — the default `HashingEmbedder` is a deterministic,
+dependency-free stand-in; swap a real semantic model in without touching the schema.
+
+Exact lookups compare identifiers directly; GTIN is normalized to GTIN-14 first.
 
 ## API
 
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/v1/search` | Lexical search (body: query, cursor, limit); cursor-paginated |
+| POST | `/v1/search/semantic` | Natural-language semantic search; hits carry a cosine score |
 | GET | `/v1/search/by-code/{code}` | Exact match on supplier product code / external id |
 | GET | `/v1/search/by-articul/{articul}` | Exact match on articul |
 | GET | `/v1/search/by-gtin/{gtin}` | Exact match on GTIN/EAN/UPC (normalized to GTIN-14) |
@@ -47,6 +54,7 @@ testcontainers (`@pytest.mark.integration`).
 
 ## Follow-ups
 
-Semantic (RAG) search over embeddings via the `Embedder` protocol and pgvector (reuses the matching
-service's approach); index canonical products from `catalog.product.updated`; hybrid RRF ranking;
-PostgreSQL FTS (`tsvector`) ranking; expose through the api-gateway and mcp-gateway.
+Index canonical products from `catalog.product.updated` (so semantic search spans the canonical
+catalog, not just supplier products); hybrid RRF ranking that fuses lexical + semantic; a real
+embedding model behind the `Embedder` protocol; PostgreSQL FTS (`tsvector`) ranking; expose through
+the api-gateway and mcp-gateway.

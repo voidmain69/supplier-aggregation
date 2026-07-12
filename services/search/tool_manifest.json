@@ -11,6 +11,15 @@
       "typical_latency_ms": 80
     },
     {
+      "name": "semantic_search",
+      "operation_id": "semanticSearch",
+      "when_to_use": "Find products by an abstract natural-language description of a need, not exact keywords or codes.",
+      "when_not_to_use": "You have exact keywords/codes/GTIN (use search_products or the by-* lookups).",
+      "safety": "read_only",
+      "cost_class": "moderate",
+      "typical_latency_ms": 120
+    },
+    {
       "name": "search_by_code",
       "operation_id": "searchByCode",
       "when_to_use": "Look up products by an exact supplier product code or external id.",
