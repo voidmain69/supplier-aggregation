@@ -8,6 +8,7 @@ round — consumers must be idempotent (hard rule 3).
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -52,3 +53,49 @@ class OutboxRelay:
                 )
             await mark_sent(session, [row.id for row in rows])
             return len(rows)
+
+
+class RelayWorker:
+    """Runs an :class:`OutboxRelay` as a long-lived poll loop (one per producing service).
+
+    Each tick drains a batch. As long as batches come back full there is more to send, so the
+    next tick fires immediately; once a tick drains a partial (or empty) batch the outbox is
+    caught up and the worker waits ``idle_delay`` before polling again — waking early on
+    :meth:`stop` for a prompt, graceful shutdown.
+    """
+
+    def __init__(
+        self,
+        relay: OutboxRelay,
+        *,
+        idle_delay: float = 1.0,
+        batch_size: int = 100,
+    ) -> None:
+        self._relay = relay
+        self._idle_delay = idle_delay
+        self._batch_size = batch_size
+        self._stopped = asyncio.Event()
+
+    def stop(self) -> None:
+        """Ask the loop to finish after its current tick."""
+        self._stopped.set()
+
+    async def run(self) -> None:
+        """Drain in a loop until :meth:`stop` is called."""
+        while not self._stopped.is_set():
+            published = await self._relay.drain(batch_size=self._batch_size)
+            if published >= self._batch_size:
+                continue  # a full batch likely means more is waiting — keep draining
+            try:
+                await asyncio.wait_for(self._stopped.wait(), timeout=self._idle_delay)
+            except TimeoutError:
+                pass  # idle period elapsed — poll again
+
+    async def drain_all(self) -> int:
+        """Drain until the outbox is empty; return the total published (one-shot / tests)."""
+        total = 0
+        while True:
+            published = await self._relay.drain(batch_size=self._batch_size)
+            total += published
+            if published < self._batch_size:
+                return total

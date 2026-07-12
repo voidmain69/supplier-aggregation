@@ -12,6 +12,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CONNECTOR_BRAIN_")
 
+    db_dsn: str = "postgresql+asyncpg://sa:sa_dev_only@localhost:5432/sa"
+    """Connector-owned store: supplier product identities, offer state and the outbox."""
+
+    kafka_bootstrap: str = "localhost:19092"
+    """Broker the outbox relay publishes discovered/price-changed events to."""
+
     base_url: str = "http://api.brain.com.ua"
     """Brain API base URL (see brain_api_documentation.md)."""
 
