@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 from sa_persistence.db import create_all, create_engine, create_session_factory
-from sa_persistence.outbox import enqueue
+from sa_persistence.outbox import OutboxRow, enqueue
 from sa_persistence.relay import InMemoryPublisher, OutboxRelay
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -27,7 +27,9 @@ async def pg_session_factory() -> AsyncIterator[SessionFactory]:
     with PostgresContainer("postgres:16-alpine") as postgres:
         dsn = re.sub(r"^postgresql\+?\w*", "postgresql+asyncpg", postgres.get_connection_url())
         engine = create_engine(dsn)
-        await create_all(engine)
+        # Scope to the outbox: in the shared test process Base.metadata holds every service's
+        # tables (incl. matching's pgvector column), which this plain image can't create.
+        await create_all(engine, tables=[OutboxRow.__table__])
         yield create_session_factory(engine)
         await engine.dispose()
 

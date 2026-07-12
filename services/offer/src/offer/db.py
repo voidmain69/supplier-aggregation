@@ -10,10 +10,9 @@ from __future__ import annotations
 from sa_persistence.db import create_all
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-# Import for side effect: register the offer tables on Base.metadata before create_all.
-from offer.adapters import models as _models  # noqa: F401
+from offer.adapters.models import OfferRow, ProcessedEvent
 
 
 async def create_schema(engine: AsyncEngine) -> None:
-    """Create the offer tables (offer + offer_processed_events)."""
-    await create_all(engine)
+    """Create the offer's own tables (offer + offer_processed_events)."""
+    await create_all(engine, tables=[OfferRow.__table__, ProcessedEvent.__table__])

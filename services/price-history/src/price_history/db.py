@@ -13,13 +13,12 @@ from sa_persistence.db import create_all
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-# Import for side effect: register price-history + outbox tables on Base.metadata.
-from price_history.adapters import models as _models  # noqa: F401
+from price_history.adapters.models import PricePointRow, ProcessedEvent
 
 
 async def create_schema(engine: AsyncEngine) -> None:
-    """Create tables; enable the Timescale hypertable when the extension is present."""
-    await create_all(engine)
+    """Create price-history's own tables; enable the Timescale hypertable when available."""
+    await create_all(engine, tables=[PricePointRow.__table__, ProcessedEvent.__table__])
     if engine.dialect.name != "postgresql":
         return
     async with engine.begin() as conn:
