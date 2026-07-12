@@ -4,6 +4,7 @@ from __future__ import annotations
 from sa_contracts.events.matching_link_confirmed import MatchingLinkConfirmed
 from sa_contracts.events.supplier_offer_price_changed import SupplierOfferPriceChanged
 from sa_contracts.events.supplier_product_discovered import SupplierProductDiscovered
+from sa_contracts.events.sync_job_requested import SyncJobRequested
 from sa_contracts.spec import EventSpec
 
 EVENT_REGISTRY: dict[str, EventSpec] = {
@@ -25,6 +26,12 @@ EVENT_REGISTRY: dict[str, EventSpec] = {
         topic="sa.supplier.product",
         dataschema="https://contracts.sa.internal/events/supplier.product.discovered.json",
     ),
+    "sync.job.requested": EventSpec(
+        event_type="sync.job.requested",
+        model=SyncJobRequested,
+        topic="sa.sync.job",
+        dataschema="https://contracts.sa.internal/events/sync.job.requested.json",
+    ),
 }
 
 __all__ = [
@@ -32,4 +39,5 @@ __all__ = [
     "MatchingLinkConfirmed",
     "SupplierOfferPriceChanged",
     "SupplierProductDiscovered",
+    "SyncJobRequested",
 ]

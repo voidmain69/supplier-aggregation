@@ -120,7 +120,7 @@ services:
     command:
       - |
         until pg_isready -h postgres -U sa -d sa -q; do echo "waiting for postgres..."; sleep 1; done
-        for db in brain catalog offer matching pricehistory; do
+        for db in brain catalog offer matching pricehistory syncorch; do
           psql "postgresql://sa:sa_dev_only@postgres:5432/sa" -tc \
             "SELECT 1 FROM pg_database WHERE datname='$$db'" | grep -q 1 \
             || psql "postgresql://sa:sa_dev_only@postgres:5432/sa" -c "CREATE DATABASE $$db";
@@ -292,6 +292,42 @@ services:
     command: ["uv", "run", "python", "-m", "price_history.consumer"]
     depends_on:
       price-history-migrate: {condition: service_completed_successfully}
+      redpanda: {condition: service_healthy}
+
+  # --- sync-orchestrator: schedules syncs (the pipeline source) --------------
+  sync-orchestrator-migrate:
+    build: {context: .., dockerfile: services/sync-orchestrator/Dockerfile}
+    image: sa-sync-orchestrator:dev
+    restart: "no"
+    environment:
+      SYNC_ORCHESTRATOR_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/syncorch
+    command: ["uv", "run", "alembic", "-c", "services/sync-orchestrator/alembic.ini", "upgrade", "head"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      db-init: {condition: service_completed_successfully}
+
+  sync-orchestrator-scheduler:
+    image: sa-sync-orchestrator:dev
+    restart: unless-stopped
+    environment:
+      SYNC_ORCHESTRATOR_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/syncorch
+      SYNC_ORCHESTRATOR_OTLP_ENDPOINT: http://otel-collector:4317
+      # Configure accounts to sync as JSON, e.g.:
+      # SYNC_ORCHESTRATOR_ACCOUNTS: '[{"account_id":"01J..ACCT1","supplier_code":"brain","settlement_currency":"USD","interval_seconds":3600}]'
+    command: ["uv", "run", "python", "-m", "sync_orchestrator.scheduler"]
+    depends_on:
+      sync-orchestrator-migrate: {condition: service_completed_successfully}
+
+  sync-orchestrator-relay:
+    image: sa-sync-orchestrator:dev
+    restart: unless-stopped
+    environment:
+      SYNC_ORCHESTRATOR_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/syncorch
+      SYNC_ORCHESTRATOR_KAFKA_BOOTSTRAP: redpanda:9092
+      SYNC_ORCHESTRATOR_OTLP_ENDPOINT: http://otel-collector:4317
+    command: ["uv", "run", "python", "-m", "sync_orchestrator.relay"]
+    depends_on:
+      sync-orchestrator-migrate: {condition: service_completed_successfully}
       redpanda: {condition: service_healthy}
 
   # --- gateways: single ingress (REST) + MCP tools ---------------------------
