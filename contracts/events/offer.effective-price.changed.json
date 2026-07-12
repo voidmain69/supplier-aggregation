@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sa.internal/events/offer.effective-price.changed.json",
+  "title": "offer.effective-price.changed",
+  "description": "The offer's effective UAH price (base price after the account's discount, FX and markup) changed. Emitted by the offer service when a supplier price change or an account-terms change moves the effective price. Topic: sa.offer.effective-price, key: offer_id.",
+  "type": "object",
+  "required": ["schema_version", "offer_id", "supplier_account_id", "supplier_product_id", "new_effective_price_uah", "base_price", "currency", "observed_at", "cause"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "offer_id": { "type": "string", "description": "ULID of the Offer (supplier_account x supplier_product)" },
+    "supplier_account_id": { "type": "string", "description": "ULID of the account whose terms produced this price" },
+    "supplier_product_id": { "type": "string", "description": "ULID of the product this offer prices" },
+    "old_effective_price_uah": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]+\\.[0-9]{1,4}$",
+      "description": "Previous effective UAH price as a decimal string; null on first pricing"
+    },
+    "new_effective_price_uah": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]{1,4}$",
+      "description": "New effective UAH price as a decimal string (never float)"
+    },
+    "base_price": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]{1,4}$",
+      "description": "Supplier base price this effective price was computed from, in `currency`"
+    },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$", "description": "ISO-4217 code of `base_price` (the account settlement currency)" },
+    "observed_at": { "type": "string", "format": "date-time", "description": "When the input that moved the effective price was observed (base price observation, or terms change time)" },
+    "cause": {
+      "type": "string",
+      "enum": ["price_changed", "terms_changed"],
+      "description": "What moved the effective price: a supplier base-price change or an account-terms change"
+    }
+  }
+}
