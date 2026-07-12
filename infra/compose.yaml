@@ -120,7 +120,7 @@ services:
     command:
       - |
         until pg_isready -h postgres -U sa -d sa -q; do echo "waiting for postgres..."; sleep 1; done
-        for db in brain catalog offer matching pricehistory syncorch; do
+        for db in brain catalog offer matching pricehistory syncorch search; do
           psql "postgresql://sa:sa_dev_only@postgres:5432/sa" -tc \
             "SELECT 1 FROM pg_database WHERE datname='$$db'" | grep -q 1 \
             || psql "postgresql://sa:sa_dev_only@postgres:5432/sa" -c "CREATE DATABASE $$db";
@@ -328,6 +328,39 @@ services:
     command: ["uv", "run", "python", "-m", "sync_orchestrator.relay"]
     depends_on:
       sync-orchestrator-migrate: {condition: service_completed_successfully}
+      redpanda: {condition: service_healthy}
+
+  # --- search: API + indexing consumer ---------------------------------------
+  search-migrate:
+    build: {context: .., dockerfile: services/search/Dockerfile}
+    image: sa-search:dev
+    restart: "no"
+    environment:
+      SEARCH_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/search
+    command: ["uv", "run", "alembic", "-c", "services/search/alembic.ini", "upgrade", "head"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      db-init: {condition: service_completed_successfully}
+
+  search:
+    image: sa-search:dev
+    restart: unless-stopped
+    environment:
+      SEARCH_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/search
+      SEARCH_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      search-migrate: {condition: service_completed_successfully}
+
+  search-consumer:
+    image: sa-search:dev
+    restart: unless-stopped
+    environment:
+      SEARCH_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/search
+      SEARCH_KAFKA_BOOTSTRAP: redpanda:9092
+      SEARCH_OTLP_ENDPOINT: http://otel-collector:4317
+    command: ["uv", "run", "python", "-m", "search.consumer"]
+    depends_on:
+      search-migrate: {condition: service_completed_successfully}
       redpanda: {condition: service_healthy}
 
   # --- gateways: single ingress (REST) + MCP tools ---------------------------

@@ -1,0 +1,86 @@
+"""Search API — lexical query + exact-identifier lookups (AI-ready, problem+json errors)."""
+
+from __future__ import annotations
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Path
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from sa_core.pagination import Page
+from search.adapters.repository import (
+    find_by_articul,
+    find_by_code,
+    find_by_gtin,
+    search,
+)
+from search.api.deps import get_session
+from search.api.schemas import SearchHit, SearchRequest
+
+router = APIRouter(prefix="/v1", tags=["search"])
+
+
+@router.post(
+    "/search",
+    operation_id="searchProducts",
+    summary="Lexical product search",
+    description=(
+        "Search products by free text over name, brand, articul and codes. The query is "
+        "tokenized and every token must match (AND). Cursor paginated. For exact identifiers "
+        "prefer the by-code/by-articul/by-gtin lookups."
+    ),
+    response_model=Page[SearchHit],
+)
+async def search_products(
+    body: SearchRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Page[SearchHit]:
+    rows, next_cursor = await search(session, body.query, cursor=body.cursor, limit=body.limit)
+    return Page(items=[SearchHit.from_row(r) for r in rows], next_cursor=next_cursor)
+
+
+@router.get(
+    "/search/by-code/{code}",
+    operation_id="searchByCode",
+    summary="Find products by supplier code",
+    description="Exact match on a supplier's product code (or external id). Returns all matches.",
+    response_model=list[SearchHit],
+)
+async def by_code(
+    code: Annotated[
+        str, Path(description="Supplier product code or external id to match exactly.")
+    ],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[SearchHit]:
+    return [SearchHit.from_row(r) for r in await find_by_code(session, code)]
+
+
+@router.get(
+    "/search/by-articul/{articul}",
+    operation_id="searchByArticul",
+    summary="Find products by articul",
+    description="Exact match on a supplier's articul. Returns all matches.",
+    response_model=list[SearchHit],
+)
+async def by_articul(
+    articul: Annotated[str, Path(description="Supplier articul to match exactly.")],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[SearchHit]:
+    return [SearchHit.from_row(r) for r in await find_by_articul(session, articul)]
+
+
+@router.get(
+    "/search/by-gtin/{gtin}",
+    operation_id="searchByGtin",
+    summary="Find products by GTIN/EAN/UPC",
+    description=(
+        "Exact match on a GTIN/EAN/UPC. The value is normalized to GTIN-14 first; an invalid "
+        "GTIN returns an empty list."
+    ),
+    response_model=list[SearchHit],
+)
+async def by_gtin(
+    gtin: Annotated[str, Path(description="GTIN/EAN/UPC (normalized to GTIN-14 before matching).")],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[SearchHit]:
+    return [SearchHit.from_row(r) for r in await find_by_gtin(session, gtin)]

@@ -1,0 +1,41 @@
+{
+  "service": "search",
+  "tools": [
+    {
+      "name": "search_products",
+      "operation_id": "searchProducts",
+      "when_to_use": "Find products by a free-text query over name, brand, articul and codes (all query tokens must match).",
+      "when_not_to_use": "You have an exact code/articul/GTIN (use search_by_code/articul/gtin), or you need prices (use the offer service).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 80
+    },
+    {
+      "name": "search_by_code",
+      "operation_id": "searchByCode",
+      "when_to_use": "Look up products by an exact supplier product code or external id.",
+      "when_not_to_use": "You only have a fuzzy description (use search_products).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 40
+    },
+    {
+      "name": "search_by_articul",
+      "operation_id": "searchByArticul",
+      "when_to_use": "Look up products by an exact supplier articul.",
+      "when_not_to_use": "You only have a fuzzy description (use search_products).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 40
+    },
+    {
+      "name": "search_by_gtin",
+      "operation_id": "searchByGtin",
+      "when_to_use": "Look up products by a GTIN/EAN/UPC barcode (normalized to GTIN-14 before matching).",
+      "when_not_to_use": "You only have a fuzzy description (use search_products).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 40
+    }
+  ]
+}
