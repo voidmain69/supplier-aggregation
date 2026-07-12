@@ -53,4 +53,10 @@ def build_server(settings: Settings, *, http: httpx.AsyncClient | None = None) -
         """Get a product together with its cheapest offer in a single call."""
         return await tools.get_product_with_best_offer(catalog, offer, supplier_product_id)
 
+    @mcp.tool()
+    async def best_offer_for_canonical(canonical_product_id: str) -> dict[str, Any]:
+        """Cheapest offer for a canonical product across ALL suppliers and accounts.
+        Use this when you have a canonical product and want the best price anywhere."""
+        return await tools.best_offer_for_canonical(catalog, offer, canonical_product_id)
+
     return mcp

@@ -5,8 +5,9 @@ serves them via an AI-ready read API. The canonical catalog + matching build on 
 
 Two processes (separate deployments):
 - **API** (`catalog.main:create_app`) — read endpoints under `/v1`.
-- **Consumer** (`python -m catalog.consumer`) — subscribes to `sa.supplier.product` and
-  upserts supplier products idempotently (dedupe by event id).
+- **Consumer** (`python -m catalog.consumer`) — subscribes to `sa.supplier.product`
+  (upsert products) and `sa.matching.link` (record each product's canonical mapping),
+  both idempotent.
 
 ## API
 
@@ -22,6 +23,7 @@ Errors are `application/problem+json`; every field/param carries an LLM-quality 
 | Direction | Type | Topic |
 |---|---|---|
 | in | `supplier.product.discovered` | `sa.supplier.product` |
+| in | `matching.link.confirmed` | `sa.matching.link` |
 
 ## Configuration
 

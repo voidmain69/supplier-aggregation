@@ -14,6 +14,7 @@ endpoint (see [ADR-0005](../../docs/adr/0005-ai-tools-ready.md)).
 | `get_offers` | All offers (prices per account) for a product |
 | `get_best_offer` | Cheapest offer (lowest UAH price) for a product |
 | `get_product_with_best_offer` | Product + its cheapest offer in one call (aggregation) |
+| `best_offer_for_canonical` | Cheapest offer for a canonical product across ALL suppliers/accounts |
 
 Served over MCP streamable HTTP (`mcp_gateway.main:create_app` → a Starlette app); tool
 descriptions come from the function docstrings. `GET /healthz` is available for probes.

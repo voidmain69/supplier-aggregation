@@ -10,6 +10,7 @@ _EXPECTED_TOOLS = {
     "get_offers",
     "get_best_offer",
     "get_product_with_best_offer",
+    "best_offer_for_canonical",
 }
 
 

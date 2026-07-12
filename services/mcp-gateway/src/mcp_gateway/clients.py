@@ -18,11 +18,18 @@ class CatalogClient:
         self._http = http
 
     async def list_products(
-        self, *, supplier: str | None = None, cursor: str | None = None, limit: int = 20
+        self,
+        *,
+        supplier: str | None = None,
+        canonical_product_id: str | None = None,
+        cursor: str | None = None,
+        limit: int = 20,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"limit": limit}
         if supplier is not None:
             params["supplier"] = supplier
+        if canonical_product_id is not None:
+            params["canonical_product_id"] = canonical_product_id
         if cursor is not None:
             params["cursor"] = cursor
         resp = await self._http.get(f"{self._base}/v1/supplier-products", params=params)

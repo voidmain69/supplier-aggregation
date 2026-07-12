@@ -21,6 +21,14 @@ _OFFER = {
     "currency": "USD",
     "price_uah": "9900.0000",
 }
+_CANONICAL = "01J0000000000000000CAN01"
+_PRODUCT2 = {**_PRODUCT, "supplier_product_id": "01J0000000000000000PROD2", "supplier_code": "acme"}
+_OFFER2 = {
+    **_OFFER,
+    "offer_id": "01J000000000000000OFFER2",
+    "supplier_product_id": "01J0000000000000000PROD2",
+    "price_uah": "9500.0000",  # cheaper than PROD1's 9900
+}
 
 
 class FakeBackends:
@@ -28,11 +36,19 @@ class FakeBackends:
 
     def __init__(self) -> None:
         self.known_product = _PRODUCT["supplier_product_id"]
+        self.known_canonical = _CANONICAL
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
         if path == "/v1/supplier-products":
-            return httpx.Response(200, json={"items": [_PRODUCT], "next_cursor": None})
+            canonical = request.url.params.get("canonical_product_id")
+            if canonical == _CANONICAL:
+                items = [_PRODUCT, _PRODUCT2]  # two suppliers of the same canonical
+            elif canonical is not None:
+                items = []  # unknown canonical -> no supplier products
+            else:
+                items = [_PRODUCT]
+            return httpx.Response(200, json={"items": items, "next_cursor": None})
         if path.startswith("/v1/supplier-products/"):
             pid = path.rsplit("/", 1)[-1]
             if pid == self.known_product:
@@ -42,8 +58,10 @@ class FakeBackends:
             return httpx.Response(200, json={"items": [_OFFER], "next_cursor": None})
         if path == "/v1/offers/best":
             pid = request.url.params.get("supplier_product_id")
-            if pid == self.known_product:
+            if pid == _PRODUCT["supplier_product_id"]:
                 return httpx.Response(200, json=_OFFER)
+            if pid == _PRODUCT2["supplier_product_id"]:
+                return httpx.Response(200, json=_OFFER2)
             return httpx.Response(404, json={"type": "x/not-found", "status": 404})
         return httpx.Response(404, json={"type": "x/not-found", "status": 404})
 

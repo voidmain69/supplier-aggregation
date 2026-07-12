@@ -48,3 +48,20 @@ async def test_get_product_with_best_offer__missing_product(
 ) -> None:
     result = await tools.get_product_with_best_offer(catalog, offer, "nope")
     assert result["found"] is False
+
+
+async def test_best_offer_for_canonical__cheapest_across_suppliers(
+    catalog: CatalogClient, offer: OfferClient
+) -> None:
+    result = await tools.best_offer_for_canonical(catalog, offer, "01J0000000000000000CAN01")
+    assert result["found"] is True
+    assert result["suppliers_considered"] == 2
+    # PROD2 (acme) at 9500 UAH beats PROD1 (brain) at 9900
+    assert result["best_offer"]["offer_id"] == "01J000000000000000OFFER2"
+
+
+async def test_best_offer_for_canonical__no_suppliers(
+    catalog: CatalogClient, offer: OfferClient
+) -> None:
+    result = await tools.best_offer_for_canonical(catalog, offer, "unknown-canonical")
+    assert result["found"] is False

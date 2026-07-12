@@ -38,6 +38,20 @@ class SupplierProductRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
+class ProductCanonicalLink(Base):
+    """Which canonical product a supplier product maps to (from matching.link.confirmed).
+
+    Kept in its own table so a link event that arrives before its product is ingested is
+    never lost (no ordering dependency between the two consumers).
+    """
+
+    __tablename__ = "product_canonical_link"
+
+    supplier_product_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    canonical_product_id: Mapped[str] = mapped_column(String(26), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class ProcessedEvent(Base):
     """An event id the catalog has already handled (consumer dedupe)."""
 
