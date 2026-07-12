@@ -6,6 +6,42 @@
 **Статус:** затверджена базова архітектура v1.0 (2026-07-11)
 **Мова документації:** українська. Мова коду, комітів, ідентифікаторів, коментарів: англійська.
 
+> Цей документ описує **цільову** архітектуру. Що з неї вже реалізовано (з зеленим CI), а що
+> свідомо відкладено — див. **[Стан реалізації](#стан-реалізації-2026-07-12)** нижче.
+
+---
+
+## Стан реалізації (2026-07-12)
+
+Наскрізний конвеєр працює й покритий тестами: **sync-orchestrator** за розкладом просить синк →
+**connector-brain** тягне Brain і публікує події → **catalog / offer / price-history / matching**
+споживають → **api-gateway / mcp-gateway** віддають назовні. `make up` піднімає всю систему.
+
+**Реалізовано (8 сервісів, 6 libs, зелений CI):**
+
+| Область | Що зроблено |
+|---|---|
+| Фундамент | Монорепо (uv workspace), CI (ruff/mypy/import-linter/conventions/event-schemas/spectral/`compose config`), libs `core · contracts · connector-sdk · observability · persistence · messaging`, `scaffold`, стандарти + ADR-0001…0005 |
+| Надійність | Transactional outbox + relay-воркер у продюсерів, ідемпотентні консюмери, **Alembic-міграції** (5 stateful БД, expand-migrate-contract), наскрізний **E2E-тест** конвеєра |
+| Ingestion | `sync-orchestrator` (розклад per-account → `sync.job.requested`); `connector-brain` (сесії/SID, rate-limit 3 rps, нормалізація, raw-archive; консюмер `sync.job.requested` → повний синк; outbox relay) |
+| Core | `catalog` (SupplierProduct + canonical link), `offer` (мультиакаунтні офери + best-offer), `price-history` (Timescale time-series + stats), `matching` (GTIN auto-link + **pgvector RAG-кандидати** + черга курації через REST) |
+| Edge | `api-gateway` (bearer + скоупи + rate-limit + агрегований OpenAPI), `mcp-gateway` (8 MCP-інструментів: пошук/офери/best/product+offer/canonical/price-history/stats) |
+| Інфра | `make up` = Postgres(+Timescale+pgvector) · Redpanda · Redis · MinIO · OTel/Grafana **+ усі сервіси** (API/консюмери/relay, БД-на-сервіс, міграції на старті) |
+
+**Відкладено / поза поточним обсягом (свідомо):**
+
+- **`search-service`** як окремий сервіс — ще нема; RAG-інфраструктура (pgvector) уже є в `matching`.
+- **`curation-ui`** — є curation **REST API** (черга, confirm/reject), самого UI ще нема.
+- **Pricing Engine / `effective_price`** — офери тримають `price`/`price_uah`; розрахунок ефективної
+  ціни за фінансовими умовами акаунта ще не реалізовано.
+- **Timescale continuous aggregates / compression** — hypertable є, `stats` рахуються запитом;
+  безперервних агрегатів і політик компресії ще нема.
+- **DLQ + реплей**, **дельта-синхронізація за розкладом**, **другий конектор**.
+- **Зовнішні залежності**: `sync-consumer` connector-brain потребує **Vault**-резолвера кредів
+  (`credentials_ref` → login/пароль); raw-архів зараз in-memory (у проді — S3).
+- **Семантична модель ембедингів**: `matching` використовує детермінований hashing-ембедер як
+  стенд-ін; реальна модель підключається через протокол `Embedder` (зміна залежностей, не архітектури).
+
 ---
 
 ## 1. Мета та скоуп
