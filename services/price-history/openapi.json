@@ -1,0 +1,461 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "price-history",
+    "description": "Price-history service. Stores every supplier price change as a time series and serves an offer's history and price stats (min/max/avg/last).",
+    "contact": {
+      "name": "Supplier Aggregation Platform",
+      "email": "Info_DIT@erc.ua"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/price-history": {
+      "get": {
+        "tags": [
+          "price-history"
+        ],
+        "summary": "List an offer's price history",
+        "description": "Price points for an offer over an optional time range, oldest first. Cursor paginated. Use it to chart price movements or find when a price changed.",
+        "operationId": "getPriceHistory",
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Offer id (ULID) to read the price history of.",
+              "title": "Offer Id"
+            },
+            "description": "Offer id (ULID) to read the price history of."
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Start of the range (ISO 8601 UTC), inclusive.",
+              "title": "From"
+            },
+            "description": "Start of the range (ISO 8601 UTC), inclusive."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "End of the range (ISO 8601 UTC), inclusive.",
+              "title": "To"
+            },
+            "description": "End of the range (ISO 8601 UTC), inclusive."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous response's next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque cursor from a previous response's next_cursor."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "description": "Max points per page (1-1000, default 100).",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Max points per page (1-1000, default 100)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_PricePointOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/price-history/stats": {
+      "get": {
+        "tags": [
+          "price-history"
+        ],
+        "summary": "Get price stats for an offer",
+        "description": "Aggregate UAH-price statistics (min/max/avg/last and count) for an offer over an optional time range. Use it to judge whether the current price is good.",
+        "operationId": "getPriceStats",
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Offer id (ULID) to read the price history of.",
+              "title": "Offer Id"
+            },
+            "description": "Offer id (ULID) to read the price history of."
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Start of the range (ISO 8601 UTC), inclusive.",
+              "title": "From"
+            },
+            "description": "Start of the range (ISO 8601 UTC), inclusive."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "End of the range (ISO 8601 UTC), inclusive.",
+              "title": "To"
+            },
+            "description": "End of the range (ISO 8601 UTC), inclusive."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceStatsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Page_PricePointOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PricePointOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "total_estimate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Estimate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "Page[PricePointOut]"
+      },
+      "PricePointOut": {
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "title": "Offer Id",
+            "description": "The offer this price belongs to (ULID)."
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts",
+            "description": "When the price was observed (UTC, ISO 8601)."
+          },
+          "price": {
+            "type": "string",
+            "title": "Price",
+            "description": "Supplier base price (decimal string) in `currency`."
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "description": "ISO-4217 code of `price`."
+          },
+          "price_uah": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Uah",
+            "description": "Price in UAH (decimal string), or null. Used for trends."
+          }
+        },
+        "type": "object",
+        "required": [
+          "offer_id",
+          "ts",
+          "price",
+          "currency"
+        ],
+        "title": "PricePointOut",
+        "description": "One observed price for an offer at a point in time."
+      },
+      "PriceStatsOut": {
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "title": "Offer Id",
+            "description": "The offer these stats are for (ULID)."
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "Number of price points in range."
+          },
+          "min_uah": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Uah",
+            "description": "Lowest UAH price seen."
+          },
+          "max_uah": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Uah",
+            "description": "Highest UAH price seen."
+          },
+          "avg_uah": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Uah",
+            "description": "Average UAH price."
+          },
+          "last_uah": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Uah",
+            "description": "Most recent UAH price."
+          },
+          "last_ts": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Ts",
+            "description": "Timestamp of the most recent price."
+          }
+        },
+        "type": "object",
+        "required": [
+          "offer_id",
+          "count"
+        ],
+        "title": "PriceStatsOut",
+        "description": "Aggregate UAH-price statistics for an offer over a time range."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Service API key or OIDC token, issued/validated by the API gateway."
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This service (behind the API gateway)."
+    }
+  ],
+  "tags": [
+    {
+      "name": "price-history"
+    }
+  ]
+}

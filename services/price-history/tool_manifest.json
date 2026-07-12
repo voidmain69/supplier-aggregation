@@ -1,0 +1,23 @@
+{
+  "service": "price-history",
+  "tools": [
+    {
+      "name": "get_price_history",
+      "operation_id": "getPriceHistory",
+      "when_to_use": "See how an offer's price changed over time (points, cursor paginated). Chart trends or find when a price moved.",
+      "when_not_to_use": "You only want the current price (use the offer service).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 150
+    },
+    {
+      "name": "get_price_stats",
+      "operation_id": "getPriceStats",
+      "when_to_use": "Get min/max/avg/last UAH price for an offer over a range to judge whether the current price is good.",
+      "when_not_to_use": "You need the full series of points (use get_price_history).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 120
+    }
+  ]
+}
