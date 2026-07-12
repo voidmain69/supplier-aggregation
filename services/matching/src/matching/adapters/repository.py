@@ -25,12 +25,29 @@ async def get_canonical(
 
 
 def create_canonical(
-    session: AsyncSession, *, gtin: str | None, brand: str | None, title: str
+    session: AsyncSession,
+    *,
+    gtin: str | None,
+    brand: str | None,
+    title: str,
+    status: str = "confirmed",
 ) -> CanonicalProductRow:
     """Create a canonical product (app-minted ULID; not yet flushed)."""
-    row = CanonicalProductRow(canonical_product_id=new_ulid(), gtin=gtin, brand=brand, title=title)
+    row = CanonicalProductRow(
+        canonical_product_id=new_ulid(), gtin=gtin, brand=brand, title=title, status=status
+    )
     session.add(row)
     return row
+
+
+async def canonicals_for_matching(
+    session: AsyncSession, *, brand: str | None, limit: int = 500
+) -> Sequence[CanonicalProductRow]:
+    """Candidate canonicals to score against (bounded; filtered by brand when known)."""
+    stmt = select(CanonicalProductRow).limit(limit)
+    if brand is not None:
+        stmt = stmt.where(CanonicalProductRow.brand == brand)
+    return (await session.execute(stmt)).scalars().all()
 
 
 def create_link(
@@ -60,6 +77,23 @@ def create_link(
 
 async def get_link(session: AsyncSession, supplier_product_id: str) -> ProductLinkRow | None:
     return await session.get(ProductLinkRow, supplier_product_id)
+
+
+async def list_pending_links(
+    session: AsyncSession, *, cursor: str | None = None, limit: int = 50
+) -> tuple[Sequence[ProductLinkRow], str | None]:
+    """The curation queue: links awaiting an operator decision, oldest first."""
+    stmt = (
+        select(ProductLinkRow)
+        .where(ProductLinkRow.status == "pending_review")
+        .order_by(ProductLinkRow.link_id)
+        .limit(limit)
+    )
+    if cursor is not None:
+        stmt = stmt.where(ProductLinkRow.link_id > str(decode_cursor(cursor)["after"]))
+    rows = (await session.execute(stmt)).scalars().all()
+    next_cursor = encode_cursor({"after": rows[-1].link_id}) if len(rows) == limit else None
+    return rows, next_cursor
 
 
 async def list_canonical(

@@ -23,8 +23,9 @@ class CanonicalProductRow(Base):
 
     canonical_product_id: Mapped[str] = mapped_column(String(26), primary_key=True)
     gtin: Mapped[str | None] = mapped_column(String(14), unique=True, default=None, index=True)
-    brand: Mapped[str | None] = mapped_column(String(255), default=None)
+    brand: Mapped[str | None] = mapped_column(String(255), default=None, index=True)
     title: Mapped[str] = mapped_column(String(1024))
+    status: Mapped[str] = mapped_column(String(16), default="confirmed")  # confirmed | draft
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
