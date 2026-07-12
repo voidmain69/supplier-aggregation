@@ -1,0 +1,18 @@
+# Keep the build context small (context is the repo root for every service image).
+.git
+.github
+.venv
+**/.venv
+**/__pycache__
+**/*.pyc
+**/*.pyo
+.mypy_cache
+.ruff_cache
+.pytest_cache
+htmlcov
+.coverage
+infra/.data
+node_modules
+docs
+**/tests
+scratchpad
