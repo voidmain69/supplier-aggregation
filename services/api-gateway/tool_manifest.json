@@ -1,0 +1,86 @@
+{
+  "service": "api-gateway",
+  "tools": [
+    {
+      "name": "list_products",
+      "operation_id": "listProducts",
+      "when_to_use": "Browse or page through supplier products, optionally filtered by supplier or the canonical product they map to.",
+      "when_not_to_use": "Fetching one product you already have the id for (use get_product).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 120
+    },
+    {
+      "name": "get_product",
+      "operation_id": "getProduct",
+      "when_to_use": "Fetch a single supplier product by its supplier_product_id (ULID), including its canonical mapping.",
+      "when_not_to_use": "Searching or listing without an id (use list_products).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 80
+    },
+    {
+      "name": "list_product_offers",
+      "operation_id": "listProductOffers",
+      "when_to_use": "List every supplier-account offer (price and availability) for a supplier product.",
+      "when_not_to_use": "You only need the cheapest option (use get_best_offer).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 120
+    },
+    {
+      "name": "get_best_offer",
+      "operation_id": "getBestOffer",
+      "when_to_use": "Get the cheapest current offer (by UAH price) across all supplier accounts for a supplier product.",
+      "when_not_to_use": "You need all offers or their terms (use list_product_offers).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 100
+    },
+    {
+      "name": "get_offer_price_history",
+      "operation_id": "getOfferPriceHistory",
+      "when_to_use": "Retrieve the time series of observed prices for one offer over a date range.",
+      "when_not_to_use": "You only need aggregates like min/max/avg (use get_offer_price_stats).",
+      "safety": "read_only",
+      "cost_class": "moderate",
+      "typical_latency_ms": 150
+    },
+    {
+      "name": "get_offer_price_stats",
+      "operation_id": "getOfferPriceStats",
+      "when_to_use": "Get aggregate UAH-price statistics (min/max/avg/last/count) for one offer over a date range.",
+      "when_not_to_use": "You need the individual points (use get_offer_price_history).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 100
+    },
+    {
+      "name": "get_curation_queue",
+      "operation_id": "getCurationQueue",
+      "when_to_use": "List supplier-to-canonical match suggestions awaiting an operator decision.",
+      "when_not_to_use": "Automated flows — curation is an operator action requiring the matching:curate scope.",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 120
+    },
+    {
+      "name": "confirm_curation_link",
+      "operation_id": "confirmCurationLink",
+      "when_to_use": "Confirm the suggested canonical for a supplier product (operator decision); emits matching.link.confirmed.",
+      "when_not_to_use": "You are unsure of the match — inspect the queue first, or reject it.",
+      "safety": "mutating",
+      "cost_class": "cheap",
+      "typical_latency_ms": 150
+    },
+    {
+      "name": "reject_curation_link",
+      "operation_id": "rejectCurationLink",
+      "when_to_use": "Reject the suggested canonical for a supplier product (operator decision).",
+      "when_not_to_use": "The suggestion is correct — confirm it instead.",
+      "safety": "mutating",
+      "cost_class": "cheap",
+      "typical_latency_ms": 150
+    }
+  ]
+}
