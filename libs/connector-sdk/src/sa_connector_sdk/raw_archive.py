@@ -2,7 +2,8 @@
 
 Archiving the raw response lets us replay normalization after a bug fix and audit exactly
 what a supplier returned. This defines the :class:`RawArchive` protocol and an in-memory
-implementation for tests; the S3/MinIO implementation ships with the connector service.
+implementation for tests; each connector service ships the S3/MinIO implementation (see
+``connector_brain.adapters.s3_archive``) so boto3 stays out of this lightweight SDK.
 """
 
 from __future__ import annotations

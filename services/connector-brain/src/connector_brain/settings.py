@@ -35,6 +35,18 @@ class Settings(BaseSettings):
 
     request_timeout_seconds: float = 30.0
 
+    # Raw archive (S3/MinIO): every Brain response is stored before normalization (hard rule 9).
+    # These are infra secrets injected from the environment, not supplier credentials.
+    s3_endpoint_url: str | None = "http://localhost:9000"
+    """S3 endpoint; set for MinIO/S3-compatible stores, leave unset (None) for real AWS S3."""
+
+    s3_bucket: str = "sa-raw"
+    """Bucket that holds raw supplier payloads (lifecycle-managed, see infrastructure standard)."""
+
+    s3_access_key: str = "sa"
+    s3_secret_key: str = "sa_dev_only"  # noqa: S105 -- dev MinIO default, overridden by env in prod
+    s3_region: str = "us-east-1"
+
     otlp_endpoint: str | None = None
     env: str = "dev"
 
