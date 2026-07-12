@@ -74,3 +74,36 @@ def discovered_event() -> Callable[..., dict[str, Any]]:
         return envelope
 
     return _make
+
+
+@pytest.fixture
+def link_confirmed_event() -> Callable[..., dict[str, Any]]:
+    """Factory building a valid matching.link.confirmed CloudEvent envelope."""
+
+    def _make(
+        *,
+        supplier_product_id: str,
+        canonical_product_id: str,
+        event_id: str | None = None,
+    ) -> dict[str, Any]:
+        envelope = make_cloud_event(
+            type="matching.link.confirmed",
+            source="//sa/matching",
+            subject=supplier_product_id,
+            dataschema="https://contracts.sa.internal/events/matching.link.confirmed.json",
+            data={
+                "schema_version": 1,
+                "link_id": "01J0000000000000000LINK1",
+                "supplier_product_id": supplier_product_id,
+                "canonical_product_id": canonical_product_id,
+                "method": "gtin_auto",
+                "confidence": 1.0,
+                "decided_by": "system",
+                "decided_at": "2026-07-11T10:00:00Z",
+            },
+        )
+        if event_id is not None:
+            envelope["id"] = event_id
+        return envelope
+
+    return _make

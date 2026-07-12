@@ -7,7 +7,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from catalog.adapters.repository import get_supplier_product, list_supplier_products
+from catalog.adapters.repository import (
+    canonical_ids_for,
+    get_supplier_product,
+    list_supplier_products,
+)
 from catalog.api.deps import get_session
 from catalog.api.schemas import Problem, SupplierProductOut
 from sa_core.errors import NotFoundError
@@ -27,7 +31,8 @@ router = APIRouter(prefix="/v1", tags=["supplier-products"])
     description=(
         "List supplier products the catalog has ingested, newest-id first. Cursor "
         "paginated: pass the returned next_cursor to fetch the following page. Filter by "
-        "supplier with the 'supplier' query param."
+        "supplier code, or by canonical_product_id to get every supplier's version of one "
+        "canonical product."
     ),
     response_model=Page[SupplierProductOut],
 )
@@ -35,6 +40,10 @@ async def list_products(
     session: Annotated[AsyncSession, Depends(get_session)],
     supplier: Annotated[
         str | None, Query(description="Filter by supplier code, e.g. 'brain'.")
+    ] = None,
+    canonical_product_id: Annotated[
+        str | None,
+        Query(description="Filter to supplier products mapped to this canonical product (ULID)."),
     ] = None,
     cursor: Annotated[
         str | None, Query(description="Opaque cursor from a previous response's next_cursor.")
@@ -44,9 +53,18 @@ async def list_products(
     ] = 50,
 ) -> Page[SupplierProductOut]:
     rows, next_cursor = await list_supplier_products(
-        session, supplier_code=supplier, cursor=cursor, limit=limit
+        session,
+        supplier_code=supplier,
+        canonical_product_id=canonical_product_id,
+        cursor=cursor,
+        limit=limit,
     )
-    return Page(items=[SupplierProductOut.from_row(r) for r in rows], next_cursor=next_cursor)
+    canonical = await canonical_ids_for(session, [r.supplier_product_id for r in rows])
+    items = [
+        SupplierProductOut.from_row(r, canonical_product_id=canonical.get(r.supplier_product_id))
+        for r in rows
+    ]
+    return Page(items=items, next_cursor=next_cursor)
 
 
 @router.get(
@@ -70,4 +88,5 @@ async def get_product(
             "List live ids via GET /v1/supplier-products.",
             instance=f"/v1/supplier-products/{supplier_product_id}",
         )
-    return SupplierProductOut.from_row(row)
+    canonical = await canonical_ids_for(session, [supplier_product_id])
+    return SupplierProductOut.from_row(row, canonical_product_id=canonical.get(supplier_product_id))

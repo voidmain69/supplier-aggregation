@@ -7,9 +7,20 @@ every endpoint.
 
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from mcp_gateway.clients import CatalogClient, OfferClient
+
+
+def _uah(offer: dict[str, Any]) -> Decimal | None:
+    value = offer.get("price_uah")
+    if value is None:
+        return None
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return None
 
 
 async def search_products(
@@ -53,3 +64,34 @@ async def get_product_with_best_offer(
         return {"found": False, "supplier_product_id": supplier_product_id}
     best = await offer.best_offer(supplier_product_id)
     return {"found": True, "product": product, "best_offer": best}
+
+
+async def best_offer_for_canonical(
+    catalog: CatalogClient, offer: OfferClient, canonical_product_id: str
+) -> dict[str, Any]:
+    """Cheapest offer for a canonical product across ALL suppliers and accounts.
+
+    Resolves the canonical product to its supplier products (catalog), takes each one's
+    cheapest offer (offer), and returns the overall cheapest by UAH price.
+    """
+    page = await catalog.list_products(canonical_product_id=canonical_product_id, limit=100)
+    supplier_products = page.get("items", [])
+    if not supplier_products:
+        return {"found": False, "canonical_product_id": canonical_product_id}
+
+    best: dict[str, Any] | None = None
+    best_uah: Decimal | None = None
+    for product in supplier_products:
+        candidate = await offer.best_offer(product["supplier_product_id"])
+        price = _uah(candidate) if candidate is not None else None
+        if price is not None and (best_uah is None or price < best_uah):
+            best, best_uah = candidate, price
+
+    if best is None:
+        return {"found": False, "canonical_product_id": canonical_product_id}
+    return {
+        "found": True,
+        "canonical_product_id": canonical_product_id,
+        "suppliers_considered": len(supplier_products),
+        "best_offer": best,
+    }

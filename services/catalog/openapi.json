@@ -16,7 +16,7 @@
           "supplier-products"
         ],
         "summary": "List supplier products",
-        "description": "List supplier products the catalog has ingested, newest-id first. Cursor paginated: pass the returned next_cursor to fetch the following page. Filter by supplier with the 'supplier' query param.",
+        "description": "List supplier products the catalog has ingested, newest-id first. Cursor paginated: pass the returned next_cursor to fetch the following page. Filter by supplier code, or by canonical_product_id to get every supplier's version of one canonical product.",
         "operationId": "listSupplierProducts",
         "parameters": [
           {
@@ -36,6 +36,24 @@
               "title": "Supplier"
             },
             "description": "Filter by supplier code, e.g. 'brain'."
+          },
+          {
+            "name": "canonical_product_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to supplier products mapped to this canonical product (ULID).",
+              "title": "Canonical Product Id"
+            },
+            "description": "Filter to supplier products mapped to this canonical product (ULID)."
           },
           {
             "name": "cursor",
@@ -357,6 +375,18 @@
             "type": "object",
             "title": "Attributes",
             "description": "Normalized attribute map (name -> value or list of values)."
+          },
+          "canonical_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical Product Id",
+            "description": "Internal id of the canonical product this maps to (once matched), or null if not matched yet. Use it to find the same product across suppliers."
           }
         },
         "type": "object",

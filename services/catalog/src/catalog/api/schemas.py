@@ -45,9 +45,16 @@ class SupplierProductOut(BaseModel):
         default_factory=dict,
         description="Normalized attribute map (name -> value or list of values).",
     )
+    canonical_product_id: str | None = Field(
+        default=None,
+        description="Internal id of the canonical product this maps to (once matched), or "
+        "null if not matched yet. Use it to find the same product across suppliers.",
+    )
 
     @classmethod
-    def from_row(cls, row: SupplierProductRow) -> SupplierProductOut:
+    def from_row(
+        cls, row: SupplierProductRow, *, canonical_product_id: str | None = None
+    ) -> SupplierProductOut:
         return cls(
             supplier_product_id=row.supplier_product_id,
             supplier_code=row.supplier_code,
@@ -59,4 +66,5 @@ class SupplierProductOut(BaseModel):
             brand=row.brand,
             supplier_category_id=row.supplier_category_id,
             attributes=row.attributes,
+            canonical_product_id=canonical_product_id,
         )
