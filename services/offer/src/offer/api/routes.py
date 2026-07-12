@@ -11,9 +11,10 @@ from offer.adapters.repository import (
     best_offer_for_product,
     get_offer,
     list_offers_for_product,
+    upsert_account_terms,
 )
 from offer.api.deps import get_session
-from offer.api.schemas import OfferOut, Problem
+from offer.api.schemas import AccountTermsIn, AccountTermsOut, OfferOut, Problem
 from sa_core.errors import NotFoundError
 from sa_core.pagination import Page
 
@@ -57,8 +58,9 @@ async def list_offers(
     operation_id="getBestOffer",
     summary="Get the cheapest offer for a product",
     description=(
-        "Return the cheapest offer (lowest UAH price) for a product across all suppliers "
-        "and accounts. 404 if the product has no offer with a UAH price."
+        "Return the cheapest offer for a product across all suppliers and accounts, ranked by "
+        "effective UAH price (base price after each account's discount, FX and markup). 404 if "
+        "the product has no offer that can yet be priced in UAH."
     ),
     response_model=OfferOut,
     responses=_NOT_FOUND,
@@ -96,3 +98,33 @@ async def get_one_offer(
             instance=f"/v1/offers/{offer_id}",
         )
     return OfferOut.from_row(row)
+
+
+@router.put(
+    "/accounts/{supplier_account_id}/terms",
+    operation_id="putAccountTerms",
+    summary="Set a supplier account's financial terms",
+    description=(
+        "Set (upsert) the financial terms for a supplier account — discount, FX rate to UAH, and "
+        "platform markup — then re-price all of that account's offers. Operator/admin only "
+        "(scope offer:admin); these terms are sensitive and are not exposed on read endpoints."
+    ),
+    response_model=AccountTermsOut,
+    tags=["accounts"],
+)
+async def put_account_terms(
+    supplier_account_id: Annotated[
+        str, Path(description="Internal supplier account id (ULID) to set terms for.")
+    ],
+    body: AccountTermsIn,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AccountTermsOut:
+    async with session.begin():
+        repriced = await upsert_account_terms(session, supplier_account_id, body.to_terms())
+    return AccountTermsOut(
+        supplier_account_id=supplier_account_id,
+        discount_pct=str(body.discount_pct),
+        markup_pct=str(body.markup_pct),
+        fx_rate_to_uah=str(body.fx_rate_to_uah) if body.fx_rate_to_uah is not None else None,
+        offers_repriced=repriced,
+    )

@@ -98,7 +98,7 @@
           "offers"
         ],
         "summary": "Get the cheapest offer for a product",
-        "description": "Return the cheapest offer (lowest UAH price) for a product across all suppliers and accounts. 404 if the product has no offer with a UAH price.",
+        "description": "Return the cheapest offer for a product across all suppliers and accounts, ranked by effective UAH price (base price after each account's discount, FX and markup). 404 if the product has no offer that can yet be priced in UAH.",
         "operationId": "getBestOffer",
         "parameters": [
           {
@@ -211,10 +211,171 @@
           }
         ]
       }
+    },
+    "/v1/accounts/{supplier_account_id}/terms": {
+      "put": {
+        "tags": [
+          "offers",
+          "accounts"
+        ],
+        "summary": "Set a supplier account's financial terms",
+        "description": "Set (upsert) the financial terms for a supplier account — discount, FX rate to UAH, and platform markup — then re-price all of that account's offers. Operator/admin only (scope offer:admin); these terms are sensitive and are not exposed on read endpoints.",
+        "operationId": "putAccountTerms",
+        "parameters": [
+          {
+            "name": "supplier_account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Internal supplier account id (ULID) to set terms for.",
+              "title": "Supplier Account Id"
+            },
+            "description": "Internal supplier account id (ULID) to set terms for."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountTermsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountTermsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
+      "AccountTermsIn": {
+        "properties": {
+          "discount_pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Discount Pct",
+            "description": "Negotiated discount off the base price, as a fraction (0.15 = 15%).",
+            "default": "0"
+          },
+          "markup_pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Markup Pct",
+            "description": "Platform markup added after discount/FX, as a fraction (0.05 = 5%).",
+            "default": "0"
+          },
+          "fx_rate_to_uah": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fx Rate To Uah",
+            "description": "Multiplier converting the account's settlement currency to UAH. Omit for UAH accounts; required to price a non-UAH account when the supplier sends no UAH price."
+          }
+        },
+        "type": "object",
+        "title": "AccountTermsIn",
+        "description": "Financial terms to set for a supplier account (operator/admin input, scope-gated)."
+      },
+      "AccountTermsOut": {
+        "properties": {
+          "supplier_account_id": {
+            "type": "string",
+            "title": "Supplier Account Id",
+            "description": "The account whose terms were set."
+          },
+          "discount_pct": {
+            "type": "string",
+            "title": "Discount Pct",
+            "description": "Stored discount fraction (decimal string)."
+          },
+          "markup_pct": {
+            "type": "string",
+            "title": "Markup Pct",
+            "description": "Stored markup fraction (decimal string)."
+          },
+          "fx_rate_to_uah": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fx Rate To Uah",
+            "description": "Stored FX rate to UAH (decimal string), or null."
+          },
+          "offers_repriced": {
+            "type": "integer",
+            "title": "Offers Repriced",
+            "description": "How many existing offers of this account were re-priced by this change."
+          }
+        },
+        "type": "object",
+        "required": [
+          "supplier_account_id",
+          "discount_pct",
+          "markup_pct",
+          "offers_repriced"
+        ],
+        "title": "AccountTermsOut",
+        "description": "Confirmation that an account's terms were stored, with the count of re-priced offers."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -265,7 +426,19 @@
               }
             ],
             "title": "Price Uah",
-            "description": "Price converted to UAH (decimal string), or null. Used to rank offers."
+            "description": "Supplier's raw price converted to UAH (decimal string), or null."
+          },
+          "effective_price_uah": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Price Uah",
+            "description": "Comparable UAH price after the account's financial terms (discount, FX, markup). This is the value offers are ranked by; null if the offer cannot yet be priced in UAH."
           },
           "rrp_uah": {
             "anyOf": [
@@ -448,6 +621,9 @@
     }
   ],
   "tags": [
+    {
+      "name": "accounts"
+    },
     {
       "name": "offers"
     }

@@ -7,8 +7,10 @@ from offer.adapters.repository import (
     best_offer_for_product,
     get_offer,
     list_offers_for_product,
+    upsert_account_terms,
     upsert_offer,
 )
+from offer.domain.pricing import FinancialTerms
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sa_contracts.events.supplier_offer_price_changed import SupplierOfferPriceChanged
@@ -89,3 +91,70 @@ async def test_best_offer__none_when_no_uah_price(sqlite_session_factory: Sessio
         await upsert_offer(session, _payload("01J000000000000000OFFER01", price_uah=None))
     async with sqlite_session_factory() as session:
         assert await best_offer_for_product(session, "01J0000000000000000PROD1") is None
+
+
+async def test_upsert__uses_account_terms_for_effective_price(
+    sqlite_session_factory: SessionFactory,
+) -> None:
+    account = "01J0000000000000000ACCT1"
+    async with sqlite_session_factory() as session, session.begin():
+        # 10% discount and an explicit FX rate: 10 USD * 41.5 * 0.90 = 373.5 UAH
+        await upsert_account_terms(
+            session,
+            account,
+            FinancialTerms(discount_pct=Decimal("0.10"), fx_rate_to_uah=Decimal("41.5")),
+        )
+    async with sqlite_session_factory() as session, session.begin():
+        await upsert_offer(
+            session,
+            _payload(
+                "01J000000000000000OFFER01", account=account, new_price="10.0000", price_uah=None
+            ),
+        )
+    async with sqlite_session_factory() as session:
+        row = await get_offer(session, "01J000000000000000OFFER01")
+    assert row is not None
+    assert row.effective_price_uah == Decimal("373.5000")
+
+
+async def test_upsert_account_terms__reprices_existing_offers(
+    sqlite_session_factory: SessionFactory,
+) -> None:
+    account = "01J0000000000000000ACCT1"
+    async with sqlite_session_factory() as session, session.begin():
+        await upsert_offer(
+            session, _payload("01J000000000000000OFFER01", account=account, price_uah="1000.0000")
+        )
+    # No terms yet: USD with no FX falls back to supplier price_uah = 1000.
+    async with sqlite_session_factory() as session:
+        row = await get_offer(session, "01J000000000000000OFFER01")
+        assert row is not None and row.effective_price_uah == Decimal("1000.0000")
+
+    async with sqlite_session_factory() as session, session.begin():
+        count = await upsert_account_terms(
+            session, account, FinancialTerms(discount_pct=Decimal("0.20"))
+        )
+    assert count == 1
+    async with sqlite_session_factory() as session:
+        row = await get_offer(session, "01J000000000000000OFFER01")
+    assert row is not None
+    assert row.effective_price_uah == Decimal("800.0000")  # 1000 * 0.80
+
+
+async def test_best_offer__ranks_by_effective_not_raw_uah(
+    sqlite_session_factory: SessionFactory,
+) -> None:
+    # Two offers with the same raw UAH price; a discount on account a1 makes it the real cheapest.
+    async with sqlite_session_factory() as session, session.begin():
+        await upsert_offer(
+            session, _payload("01J000000000000000OFFER01", account="a1", price_uah="1000.0000")
+        )
+        await upsert_offer(
+            session, _payload("01J000000000000000OFFER02", account="a2", price_uah="1000.0000")
+        )
+        await upsert_account_terms(session, "a1", FinancialTerms(discount_pct=Decimal("0.30")))
+
+    async with sqlite_session_factory() as session:
+        best = await best_offer_for_product(session, "01J0000000000000000PROD1")
+    assert best is not None
+    assert best.offer_id == "01J000000000000000OFFER01"  # 700 effective beats 1000
