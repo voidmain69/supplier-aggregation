@@ -11,6 +11,7 @@ dependencies = [
     "sa-core",
     "sa-contracts",
     "sa-observability",
+    "alembic>=1.13",
     "sa-persistence",
     "sa-messaging",
 ]

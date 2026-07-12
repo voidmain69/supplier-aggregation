@@ -1,6 +1,6 @@
 # Single entry point for the dev loop. Works in Git Bash / WSL / Linux / macOS.
 
-.PHONY: up down lint test test-integration check contracts openapi clients scaffold ci
+.PHONY: up down lint test test-integration check contracts openapi clients scaffold migrate ci
 
 up:
 	docker compose -f infra/compose.yaml up -d
@@ -37,5 +37,8 @@ openapi:
 
 scaffold:
 	uv run python tools/scaffold_service.py $(name)
+
+migrate:   # apply a service's migrations, e.g. `make migrate svc=catalog`
+	uv run alembic -c services/$(svc)/alembic.ini upgrade head
 
 ci: lint test check

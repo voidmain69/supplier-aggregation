@@ -1,4 +1,9 @@
-"""Matching database wiring (schema create for tests/local; Alembic is a follow-up)."""
+"""Matching database wiring.
+
+``create_schema`` builds the tables directly — the fast path for unit tests and local runs.
+Production applies the migrations instead: ``alembic -c services/matching/alembic.ini upgrade
+head`` (or ``make migrate svc=matching``).
+"""
 
 from __future__ import annotations
 
