@@ -31,8 +31,18 @@ class SearchRequest(BaseModel):
     limit: int = Field(default=20, ge=1, le=100, description="Max hits per page (1-100).")
 
 
+class SemanticSearchRequest(BaseModel):
+    """A natural-language search query, matched by meaning over product embeddings."""
+
+    query: str = Field(
+        description="Natural-language need, e.g. 'motherboard for Ryzen 9000 with Wi-Fi 7'.",
+        min_length=1,
+    )
+    limit: int = Field(default=20, ge=1, le=100, description="Max hits to return (1-100).")
+
+
 class SearchHit(BaseModel):
-    """One matching product."""
+    """One matching product. ``score`` is set for semantic results (cosine similarity, 0-1)."""
 
     supplier_product_id: str = Field(description="Internal id (ULID) of the matched product.")
     supplier_code: str = Field(description="Supplier the product belongs to, e.g. 'brain'.")
@@ -43,9 +53,13 @@ class SearchHit(BaseModel):
     gtin: str | None = Field(
         default=None, description="Normalized GTIN-14, if the product has one."
     )
+    score: float | None = Field(
+        default=None,
+        description="Semantic similarity in [0,1] (higher is closer); null for lexical hits.",
+    )
 
     @classmethod
-    def from_row(cls, row: SearchDocumentRow) -> SearchHit:
+    def from_row(cls, row: SearchDocumentRow, *, score: float | None = None) -> SearchHit:
         return cls(
             supplier_product_id=row.supplier_product_id,
             supplier_code=row.supplier_code,
@@ -54,4 +68,5 @@ class SearchHit(BaseModel):
             articul=row.articul,
             external_code=row.external_code,
             gtin=row.gtin,
+            score=score,
         )

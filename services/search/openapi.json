@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "search",
-    "description": "Search service. Find products by free-text query (name/brand/code/articul) or by exact identifier (code, articul, GTIN). Indexed from supplier product events.",
+    "description": "Search service. Find products by free-text query (name/brand/code/articul), by meaning (natural-language semantic search), or by exact identifier (code, articul, GTIN). Indexed from supplier product events.",
     "contact": {
       "name": "Supplier Aggregation Platform",
       "email": "Info_DIT@erc.ua"
@@ -35,6 +35,57 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Page_SearchHit_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/search/semantic": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Semantic (natural-language) product search",
+        "description": "Find products by meaning rather than keywords — describe the need in natural language ('motherboard for Ryzen 9000 with Wi-Fi 7') and get the nearest products by embedding similarity. Each hit has a score in [0,1]. Use lexical search for keyword/code lookups.",
+        "operationId": "semanticSearch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SemanticSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SearchHit"
+                  },
+                  "type": "array",
+                  "title": "Response Semanticsearch"
                 }
               }
             }
@@ -337,6 +388,18 @@
             ],
             "title": "Gtin",
             "description": "Normalized GTIN-14, if the product has one."
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "Semantic similarity in [0,1] (higher is closer); null for lexical hits."
           }
         },
         "type": "object",
@@ -346,7 +409,7 @@
           "name"
         ],
         "title": "SearchHit",
-        "description": "One matching product."
+        "description": "One matching product. ``score`` is set for semantic results (cosine similarity, 0-1)."
       },
       "SearchRequest": {
         "properties": {
@@ -383,6 +446,30 @@
         ],
         "title": "SearchRequest",
         "description": "A lexical search query. Every token must appear in a product's name/brand/code/articul."
+      },
+      "SemanticSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Natural-language need, e.g. 'motherboard for Ryzen 9000 with Wi-Fi 7'."
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Max hits to return (1-100).",
+            "default": 20
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "SemanticSearchRequest",
+        "description": "A natural-language search query, matched by meaning over product embeddings."
       },
       "ValidationError": {
         "properties": {

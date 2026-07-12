@@ -8,10 +8,17 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from search.domain.embedding import Embedder
+
 
 def get_session_factory(request: Request) -> async_sessionmaker[AsyncSession]:
     factory: async_sessionmaker[AsyncSession] = request.app.state.session_factory
     return factory
+
+
+def get_embedder(request: Request) -> Embedder:
+    embedder: Embedder = request.app.state.embedder
+    return embedder
 
 
 async def get_session(
