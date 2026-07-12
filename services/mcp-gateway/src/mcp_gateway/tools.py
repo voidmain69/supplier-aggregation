@@ -10,7 +10,7 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from mcp_gateway.clients import CatalogClient, OfferClient
+from mcp_gateway.clients import CatalogClient, OfferClient, PriceHistoryClient
 
 
 def _uah(offer: dict[str, Any]) -> Decimal | None:
@@ -53,6 +53,32 @@ async def get_best_offer(offer: OfferClient, supplier_product_id: str) -> dict[s
     if best is None:
         return {"found": False, "supplier_product_id": supplier_product_id}
     return {"found": True, "offer": best}
+
+
+async def get_price_history(
+    price_history: PriceHistoryClient,
+    offer_id: str,
+    *,
+    from_: str | None = None,
+    to: str | None = None,
+    cursor: str | None = None,
+    limit: int = 100,
+) -> dict[str, Any]:
+    """Time series of observed prices for one offer over a date range; cursor-paginated."""
+    return await price_history.price_history(
+        offer_id, from_=from_, to=to, cursor=cursor, limit=limit
+    )
+
+
+async def get_offer_price_stats(
+    price_history: PriceHistoryClient,
+    offer_id: str,
+    *,
+    from_: str | None = None,
+    to: str | None = None,
+) -> dict[str, Any]:
+    """Aggregate UAH-price statistics (min/max/avg/last/count) for one offer over a range."""
+    return await price_history.price_stats(offer_id, from_=from_, to=to)
 
 
 async def get_product_with_best_offer(

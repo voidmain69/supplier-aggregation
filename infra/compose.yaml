@@ -317,6 +317,7 @@ services:
     environment:
       MCP_GATEWAY_CATALOG_BASE_URL: http://catalog:8000
       MCP_GATEWAY_OFFER_BASE_URL: http://offer:8000
+      MCP_GATEWAY_PRICE_HISTORY_BASE_URL: http://price-history:8000
       MCP_GATEWAY_OTLP_ENDPOINT: http://otel-collector:4317
     ports: ["8090:8000"]
-    depends_on: [catalog, offer]
+    depends_on: [catalog, offer, price-history]

@@ -1,9 +1,9 @@
 # mcp-gateway
 
 The platform's **MCP server** for AI agents. Exposes a small, curated set of task-oriented
-tools over the internal catalog and offer APIs (read-only HTTP; never their DBs). This is
-the single entry point agents use — a task-oriented toolset, not a 1:1 proxy of every
-endpoint (see [ADR-0005](../../docs/adr/0005-ai-tools-ready.md)).
+tools over the internal catalog, offer and price-history APIs (read-only HTTP; never their
+DBs). This is the single entry point agents use — a task-oriented toolset, not a 1:1 proxy of
+every endpoint (see [ADR-0005](../../docs/adr/0005-ai-tools-ready.md)).
 
 ## Tools
 
@@ -13,6 +13,8 @@ endpoint (see [ADR-0005](../../docs/adr/0005-ai-tools-ready.md)).
 | `get_product` | One supplier product by internal id |
 | `get_offers` | All offers (prices per account) for a product |
 | `get_best_offer` | Cheapest offer (lowest UAH price) for a product |
+| `get_price_history` | Time series of observed prices for an offer (optional date range) |
+| `get_offer_price_stats` | Aggregate UAH-price stats (min/max/avg/last/count) for an offer |
 | `get_product_with_best_offer` | Product + its cheapest offer in one call (aggregation) |
 | `best_offer_for_canonical` | Cheapest offer for a canonical product across ALL suppliers/accounts |
 
@@ -21,7 +23,8 @@ descriptions come from the function docstrings. `GET /healthz` is available for 
 
 ## Configuration
 
-Env prefix `MCP_GATEWAY_` (see `settings.py`): `catalog_base_url`, `offer_base_url`.
+Env prefix `MCP_GATEWAY_` (see `settings.py`): `catalog_base_url`, `offer_base_url`,
+`price_history_base_url`.
 
 ## Run tests
 
@@ -32,5 +35,5 @@ a smoke test asserts the MCP server registers every tool with a description and 
 
 ## Follow-ups
 
-Map REST scopes onto tool auth; add semantic/RAG search and price-history tools as those
-services land; generated OpenAPI clients instead of hand-written httpx clients.
+Map REST scopes onto tool auth; a semantic/RAG search tool over matching; generated OpenAPI
+clients instead of hand-written httpx clients.

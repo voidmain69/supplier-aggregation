@@ -13,7 +13,7 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 
 from mcp_gateway import tools
-from mcp_gateway.clients import CatalogClient, OfferClient
+from mcp_gateway.clients import CatalogClient, OfferClient, PriceHistoryClient
 from mcp_gateway.settings import Settings
 
 
@@ -22,6 +22,7 @@ def build_server(settings: Settings, *, http: httpx.AsyncClient | None = None) -
     client = http or httpx.AsyncClient(timeout=settings.request_timeout_seconds)
     catalog = CatalogClient(settings.catalog_base_url, client)
     offer = OfferClient(settings.offer_base_url, client)
+    price_history = PriceHistoryClient(settings.price_history_base_url, client)
 
     mcp: FastMCP = FastMCP("supplier-aggregation")
 
@@ -47,6 +48,28 @@ def build_server(settings: Settings, *, http: httpx.AsyncClient | None = None) -
     async def get_best_offer(supplier_product_id: str) -> dict[str, Any]:
         """Get the cheapest offer (lowest UAH price) for a product."""
         return await tools.get_best_offer(offer, supplier_product_id)
+
+    @mcp.tool()
+    async def get_price_history(
+        offer_id: str,
+        from_: str | None = None,
+        to: str | None = None,
+        cursor: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """Price history (time series of observed prices) for one offer. Optional ISO-8601 UTC
+        `from_`/`to` bounds; cursor-paginated. Use to show or reason about price trends."""
+        return await tools.get_price_history(
+            price_history, offer_id, from_=from_, to=to, cursor=cursor, limit=limit
+        )
+
+    @mcp.tool()
+    async def get_offer_price_stats(
+        offer_id: str, from_: str | None = None, to: str | None = None
+    ) -> dict[str, Any]:
+        """Aggregate UAH-price stats (min/max/avg/last/count) for one offer over an optional
+        ISO-8601 UTC date range. Use for a quick summary instead of the full history."""
+        return await tools.get_offer_price_stats(price_history, offer_id, from_=from_, to=to)
 
     @mcp.tool()
     async def get_product_with_best_offer(supplier_product_id: str) -> dict[str, Any]:
