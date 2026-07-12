@@ -120,3 +120,65 @@ async def price_stats(
         "last_uah": _str(last.price_uah) if last is not None else None,
         "last_ts": last.ts.isoformat() if last is not None else None,
     }
+
+
+async def daily_price_stats(
+    session: AsyncSession,
+    *,
+    offer_id: str,
+    from_ts: datetime | None = None,
+    to_ts: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """Per-day UAH-price buckets for an offer (min/max/avg/last/count), oldest day first.
+
+    A portable ``GROUP BY`` over the raw hypertable — correct on SQLite, Postgres and
+    Timescale alike. In production the ``price_daily`` continuous aggregate materializes the
+    same rollup for scale/BI (see the migration).
+    """
+    day = func.date(PricePointRow.ts)
+    agg = (
+        _apply_range(
+            select(
+                day.label("day"),
+                func.count().label("cnt"),
+                func.min(PricePointRow.price_uah).label("mn"),
+                func.max(PricePointRow.price_uah).label("mx"),
+                func.avg(PricePointRow.price_uah).label("av"),
+            ),
+            offer_id=offer_id,
+            from_ts=from_ts,
+            to_ts=to_ts,
+        )
+        .group_by(day)
+        .order_by(day)
+    )
+    agg_rows = (await session.execute(agg)).all()
+
+    # Last price per day = the value at the latest ts within the day (one row per day).
+    ranked = _apply_range(
+        select(
+            day.label("day"),
+            PricePointRow.price_uah.label("last_uah"),
+            func.row_number().over(partition_by=day, order_by=PricePointRow.ts.desc()).label("rn"),
+        ),
+        offer_id=offer_id,
+        from_ts=from_ts,
+        to_ts=to_ts,
+    ).subquery()
+    last_stmt = select(ranked.c.day, ranked.c.last_uah).where(ranked.c.rn == 1)
+    last_by_day = {r.day: r.last_uah for r in (await session.execute(last_stmt)).all()}
+
+    def _str(value: Decimal | None) -> str | None:
+        return f"{value:.4f}" if value is not None else None
+
+    return [
+        {
+            "day": str(r.day),
+            "count": int(r.cnt),
+            "min_uah": _str(r.mn),
+            "max_uah": _str(r.mx),
+            "avg_uah": _str(Decimal(r.av) if r.av is not None else None),
+            "last_uah": _str(last_by_day.get(r.day)),
+        }
+        for r in agg_rows
+    ]

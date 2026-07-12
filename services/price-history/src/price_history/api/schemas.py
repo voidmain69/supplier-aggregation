@@ -50,3 +50,14 @@ class PriceStatsOut(BaseModel):
     avg_uah: str | None = Field(default=None, description="Average UAH price.")
     last_uah: str | None = Field(default=None, description="Most recent UAH price.")
     last_ts: str | None = Field(default=None, description="Timestamp of the most recent price.")
+
+
+class DailyPriceStatOut(BaseModel):
+    """One day's UAH-price rollup for an offer."""
+
+    day: str = Field(description="Calendar day (UTC, YYYY-MM-DD).")
+    count: int = Field(description="Number of price points observed that day.")
+    min_uah: str | None = Field(default=None, description="Lowest UAH price that day.")
+    max_uah: str | None = Field(default=None, description="Highest UAH price that day.")
+    avg_uah: str | None = Field(default=None, description="Average UAH price that day.")
+    last_uah: str | None = Field(default=None, description="Last UAH price of the day.")

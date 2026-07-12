@@ -15,6 +15,15 @@ Two processes (separate deployments):
 |---|---|---|
 | GET | `/v1/price-history?offer_id=&from=&to=` | Price points over a range (cursor paginated) |
 | GET | `/v1/price-history/stats?offer_id=&from=&to=` | min/max/avg/last UAH price + count |
+| GET | `/v1/price-history/daily?offer_id=&from=&to=` | Per-day rollup (min/max/avg/last per day) |
+
+## Daily rollup
+
+`/price-history/daily` returns per-day UAH buckets via a portable `GROUP BY` over the raw table,
+so it works on SQLite, Postgres and Timescale alike. In production a Timescale **continuous
+aggregate** (`price_daily`, hourly refresh) materializes the same rollup for scale/BI, and a
+**compression policy** compresses raw `price_point` chunks older than 90 days — both installed by
+the migration and skipped on non-Timescale Postgres.
 
 ## Events
 
@@ -36,5 +45,6 @@ present, so tests use a plain Postgres image.
 
 ## Follow-ups
 
-Continuous aggregates (daily min/avg/max) + compression/retention policies; a
+Per-canonical-product rollups; a retention policy on raw points; back the daily API with the
+continuous aggregate when real-time refresh lag is acceptable; a
 `get_price_history` tool in the MCP gateway; Alembic migrations.
