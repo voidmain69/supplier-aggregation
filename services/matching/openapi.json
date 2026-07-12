@@ -1,0 +1,378 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "matching",
+    "description": "Matching service. Links supplier products to canonical products (GTIN auto + operator curation) and serves the canonical catalog.",
+    "contact": {
+      "name": "Supplier Aggregation Platform",
+      "email": "Info_DIT@erc.ua"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/canonical-products": {
+      "get": {
+        "tags": [
+          "canonical-products"
+        ],
+        "summary": "List canonical products",
+        "description": "List canonical (platform) products, optionally filtered by normalized GTIN-14. Cursor paginated. Use it to find the canonical product that aggregates a GTIN.",
+        "operationId": "listCanonicalProducts",
+        "parameters": [
+          {
+            "name": "gtin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by normalized GTIN-14 (14 digits).",
+              "title": "Gtin"
+            },
+            "description": "Filter by normalized GTIN-14 (14 digits)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous response's next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque cursor from a previous response's next_cursor."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Max items per page (1-200, default 50).",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Max items per page (1-200, default 50)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_CanonicalProductOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/canonical-products/{canonical_product_id}": {
+      "get": {
+        "tags": [
+          "canonical-products"
+        ],
+        "summary": "Get one canonical product",
+        "description": "Fetch a single canonical product by its internal canonical_product_id (ULID).",
+        "operationId": "getCanonicalProduct",
+        "parameters": [
+          {
+            "name": "canonical_product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Internal canonical_product_id (ULID).",
+              "title": "Canonical Product Id"
+            },
+            "description": "Internal canonical_product_id (ULID)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanonicalProductOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No canonical product with that id.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CanonicalProductOut": {
+        "properties": {
+          "canonical_product_id": {
+            "type": "string",
+            "title": "Canonical Product Id",
+            "description": "Stable internal ULID of the canonical product."
+          },
+          "gtin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gtin",
+            "description": "Normalized GTIN-14, if the product was matched by GTIN."
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand",
+            "description": "Brand/vendor name, if known."
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Canonical product title."
+          }
+        },
+        "type": "object",
+        "required": [
+          "canonical_product_id",
+          "title"
+        ],
+        "title": "CanonicalProductOut",
+        "description": "A canonical (platform) product that aggregates supplier products."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Page_CanonicalProductOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CanonicalProductOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "total_estimate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Estimate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "Page[CanonicalProductOut]"
+      },
+      "Problem": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Stable URI identifying the error type."
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Short, human-readable summary of the error type."
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "HTTP status code."
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "Human/LLM-readable explanation with a next step."
+          },
+          "instance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instance",
+            "description": "URI of the specific occurrence."
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "Trace id to correlate with telemetry."
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail"
+        ],
+        "title": "Problem",
+        "description": "RFC 9457 problem+json error body (returned on 4xx/5xx)."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Service API key or OIDC token, issued/validated by the API gateway."
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This service (behind the API gateway)."
+    }
+  ],
+  "tags": [
+    {
+      "name": "canonical-products"
+    }
+  ]
+}
