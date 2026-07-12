@@ -1,5 +1,13 @@
-# Full local dev stack: `make up`
+# Full local dev stack: `make up` (infra + all application services).
 # Data persists in infra/.data/ (gitignored).
+#
+# Host entrypoints once up:
+#   api-gateway  http://localhost:8080   (REST ingress; needs a bearer token — see api-gateway README)
+#   mcp-gateway  http://localhost:8090   (MCP tools for agents)
+#   Redpanda console http://localhost:8085 · Grafana http://localhost:3000
+#
+# Each service owns its own database (created by db-init) and applies its Alembic migrations
+# via a one-shot `*-migrate` job before its long-running processes start.
 
 name: supplier-aggregation
 
@@ -30,6 +38,11 @@ services:
     ports: ["19092:19092"]
     volumes:
       - ./.data/redpanda:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 5s
+      retries: 15
+      start_period: 10s
 
   console:
     image: redpandadata/console:v2.6.0
@@ -92,3 +105,218 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports: ["3000:3000"]
     depends_on: [prometheus, tempo, loki]
+
+  # ---------------------------------------------------------------------------
+  # Application services. Each owns its own database (created by db-init); the
+  # image is built from the repo root (uv workspace). Migrations run as one-shot
+  # `*-migrate` jobs that the long-running processes wait on.
+  # ---------------------------------------------------------------------------
+  db-init:
+    image: timescale/timescaledb-ha:pg16
+    restart: "no"
+    depends_on:
+      postgres: {condition: service_healthy}
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        until pg_isready -h postgres -U sa -d sa -q; do echo "waiting for postgres..."; sleep 1; done
+        for db in brain catalog offer matching pricehistory; do
+          psql "postgresql://sa:sa_dev_only@postgres:5432/sa" -tc \
+            "SELECT 1 FROM pg_database WHERE datname='$$db'" | grep -q 1 \
+            || psql "postgresql://sa:sa_dev_only@postgres:5432/sa" -c "CREATE DATABASE $$db";
+        done
+
+  # --- connector-brain (producer): relay drains its outbox to Kafka ----------
+  connector-brain-migrate:
+    build: {context: .., dockerfile: services/connector-brain/Dockerfile}
+    image: sa-connector-brain:dev
+    restart: "no"
+    environment:
+      CONNECTOR_BRAIN_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/brain
+    command: ["uv", "run", "alembic", "-c", "services/connector-brain/alembic.ini", "upgrade", "head"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      db-init: {condition: service_completed_successfully}
+
+  connector-brain-relay:
+    image: sa-connector-brain:dev
+    restart: unless-stopped
+    environment:
+      CONNECTOR_BRAIN_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/brain
+      CONNECTOR_BRAIN_KAFKA_BOOTSTRAP: redpanda:9092
+      CONNECTOR_BRAIN_OTLP_ENDPOINT: http://otel-collector:4317
+    command: ["uv", "run", "python", "-m", "connector_brain.relay"]
+    depends_on:
+      connector-brain-migrate: {condition: service_completed_successfully}
+      redpanda: {condition: service_healthy}
+
+  # --- catalog: API + discovered/link consumer -------------------------------
+  catalog-migrate:
+    build: {context: .., dockerfile: services/catalog/Dockerfile}
+    image: sa-catalog:dev
+    restart: "no"
+    environment:
+      CATALOG_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/catalog
+    command: ["uv", "run", "alembic", "-c", "services/catalog/alembic.ini", "upgrade", "head"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      db-init: {condition: service_completed_successfully}
+
+  catalog:
+    image: sa-catalog:dev
+    restart: unless-stopped
+    environment:
+      CATALOG_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/catalog
+      CATALOG_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      catalog-migrate: {condition: service_completed_successfully}
+
+  catalog-consumer:
+    image: sa-catalog:dev
+    restart: unless-stopped
+    environment:
+      CATALOG_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/catalog
+      CATALOG_KAFKA_BOOTSTRAP: redpanda:9092
+      CATALOG_OTLP_ENDPOINT: http://otel-collector:4317
+    command: ["uv", "run", "python", "-m", "catalog.consumer"]
+    depends_on:
+      catalog-migrate: {condition: service_completed_successfully}
+      redpanda: {condition: service_healthy}
+
+  # --- offer: API + price-changed consumer -----------------------------------
+  offer-migrate:
+    build: {context: .., dockerfile: services/offer/Dockerfile}
+    image: sa-offer:dev
+    restart: "no"
+    environment:
+      OFFER_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/offer
+    command: ["uv", "run", "alembic", "-c", "services/offer/alembic.ini", "upgrade", "head"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      db-init: {condition: service_completed_successfully}
+
+  offer:
+    image: sa-offer:dev
+    restart: unless-stopped
+    environment:
+      OFFER_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/offer
+      OFFER_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      offer-migrate: {condition: service_completed_successfully}
+
+  offer-consumer:
+    image: sa-offer:dev
+    restart: unless-stopped
+    environment:
+      OFFER_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/offer
+      OFFER_KAFKA_BOOTSTRAP: redpanda:9092
+      OFFER_OTLP_ENDPOINT: http://otel-collector:4317
+    command: ["uv", "run", "python", "-m", "offer.consumer"]
+    depends_on:
+      offer-migrate: {condition: service_completed_successfully}
+      redpanda: {condition: service_healthy}
+
+  # --- matching: API + discovered consumer + link-confirmed relay ------------
+  matching-migrate:
+    build: {context: .., dockerfile: services/matching/Dockerfile}
+    image: sa-matching:dev
+    restart: "no"
+    environment:
+      MATCHING_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/matching
+    command: ["uv", "run", "alembic", "-c", "services/matching/alembic.ini", "upgrade", "head"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      db-init: {condition: service_completed_successfully}
+
+  matching:
+    image: sa-matching:dev
+    restart: unless-stopped
+    environment:
+      MATCHING_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/matching
+      MATCHING_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      matching-migrate: {condition: service_completed_successfully}
+
+  matching-consumer:
+    image: sa-matching:dev
+    restart: unless-stopped
+    environment:
+      MATCHING_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/matching
+      MATCHING_KAFKA_BOOTSTRAP: redpanda:9092
+      MATCHING_OTLP_ENDPOINT: http://otel-collector:4317
+    command: ["uv", "run", "python", "-m", "matching.consumer"]
+    depends_on:
+      matching-migrate: {condition: service_completed_successfully}
+      redpanda: {condition: service_healthy}
+
+  matching-relay:
+    image: sa-matching:dev
+    restart: unless-stopped
+    environment:
+      MATCHING_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/matching
+      MATCHING_KAFKA_BOOTSTRAP: redpanda:9092
+      MATCHING_OTLP_ENDPOINT: http://otel-collector:4317
+    command: ["uv", "run", "python", "-m", "matching.relay"]
+    depends_on:
+      matching-migrate: {condition: service_completed_successfully}
+      redpanda: {condition: service_healthy}
+
+  # --- price-history: API + price-changed consumer (Timescale) ---------------
+  price-history-migrate:
+    build: {context: .., dockerfile: services/price-history/Dockerfile}
+    image: sa-price-history:dev
+    restart: "no"
+    environment:
+      PRICE_HISTORY_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/pricehistory
+    command: ["uv", "run", "alembic", "-c", "services/price-history/alembic.ini", "upgrade", "head"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      db-init: {condition: service_completed_successfully}
+
+  price-history:
+    image: sa-price-history:dev
+    restart: unless-stopped
+    environment:
+      PRICE_HISTORY_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/pricehistory
+      PRICE_HISTORY_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      price-history-migrate: {condition: service_completed_successfully}
+
+  price-history-consumer:
+    image: sa-price-history:dev
+    restart: unless-stopped
+    environment:
+      PRICE_HISTORY_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/pricehistory
+      PRICE_HISTORY_KAFKA_BOOTSTRAP: redpanda:9092
+      PRICE_HISTORY_OTLP_ENDPOINT: http://otel-collector:4317
+    command: ["uv", "run", "python", "-m", "price_history.consumer"]
+    depends_on:
+      price-history-migrate: {condition: service_completed_successfully}
+      redpanda: {condition: service_healthy}
+
+  # --- gateways: single ingress (REST) + MCP tools ---------------------------
+  api-gateway:
+    build: {context: .., dockerfile: services/api-gateway/Dockerfile}
+    image: sa-api-gateway:dev
+    restart: unless-stopped
+    environment:
+      API_GATEWAY_CATALOG_BASE_URL: http://catalog:8000
+      API_GATEWAY_OFFER_BASE_URL: http://offer:8000
+      API_GATEWAY_PRICE_HISTORY_BASE_URL: http://price-history:8000
+      API_GATEWAY_MATCHING_BASE_URL: http://matching:8000
+      API_GATEWAY_OTLP_ENDPOINT: http://otel-collector:4317
+      # Add principals as JSON (token SHA-256 hash -> {subject, scopes}):
+      # API_GATEWAY_PRINCIPALS: '{"<sha256>": {"subject": "agent:demo", "scopes": ["catalog:read"]}}'
+    ports: ["8080:8000"]
+    depends_on: [catalog, offer, price-history, matching]
+
+  mcp-gateway:
+    build: {context: .., dockerfile: services/mcp-gateway/Dockerfile}
+    image: sa-mcp-gateway:dev
+    restart: unless-stopped
+    environment:
+      MCP_GATEWAY_CATALOG_BASE_URL: http://catalog:8000
+      MCP_GATEWAY_OFFER_BASE_URL: http://offer:8000
+      MCP_GATEWAY_OTLP_ENDPOINT: http://otel-collector:4317
+    ports: ["8090:8000"]
+    depends_on: [catalog, offer]

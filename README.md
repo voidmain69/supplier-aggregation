@@ -98,10 +98,16 @@ PostgreSQL + TimescaleDB + pgvector. Чому саме так — у [ADR](docs/
 ## Швидкий старт (після появи коду сервісів)
 
 ```bash
-make up                      # локальний стек: Postgres(+Timescale+pgvector), Redpanda, Redis, MinIO, Grafana
+make up                      # весь стек: інфра (Postgres+Timescale+pgvector, Redpanda, Redis, MinIO, Grafana)
+                             # + усі сервіси (кожен зі своєю БД і Alembic-міграціями)
+make migrate svc=<service>   # застосувати міграції сервісу вручну
 make scaffold name=<service> # створити новий сервіс із шаблону
 make lint test check         # перевірки перед пушем
 ```
+
+Після `make up`: REST-вхід — <http://localhost:8080> (api-gateway, потрібен bearer-токен),
+MCP-інструменти — <http://localhost:8090> (mcp-gateway), Redpanda console — <http://localhost:8085>,
+Grafana — <http://localhost:3000>.
 
 ## Розробка
 

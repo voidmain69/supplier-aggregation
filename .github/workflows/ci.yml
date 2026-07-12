@@ -38,6 +38,9 @@ jobs:
       - name: Event schemas check
         run: uv run python tools/check_event_schemas.py
 
+      - name: Validate compose stack
+        run: docker compose -f infra/compose.yaml config -q
+
       - name: OpenAPI export up to date
         run: |
           uv run python tools/export_openapi.py
