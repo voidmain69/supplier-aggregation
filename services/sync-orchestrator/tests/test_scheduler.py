@@ -36,6 +36,7 @@ async def test_run_tick__emits_and_validates_for_due_account(
     assert key == schedule.account_id  # keyed by account_id
     Draft202012Validator(_SCHEMA).validate(payload["data"])
     assert payload["data"]["kind"] == "all"
+    assert payload["data"]["mode"] == "delta"  # the scheduled cadence carries its mode
 
     async with sqlite_session_factory() as session:
         assert (await load_last_requested(session))[schedule.account_id] == _NOW

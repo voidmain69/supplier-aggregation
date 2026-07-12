@@ -25,6 +25,7 @@ def sync_requested_record(
         credentials_ref=schedule.credentials_ref,
         settlement_currency=schedule.settlement_currency,
         kind=schedule.kind,  # a string; validated against the Kind enum
+        mode=schedule.mode,  # a string; validated against the Mode enum
         sync_job_id=sync_job_id,
         requested_at=requested_at,
     ).model_dump(mode="json")

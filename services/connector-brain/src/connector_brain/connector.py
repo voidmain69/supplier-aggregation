@@ -81,6 +81,21 @@ class BrainConnector:
                 return
             offset += limit
 
+    async def fetch_delta_item(
+        self, external_id: str, account: AccountCtx
+    ) -> tuple[RawProduct, RawOffer | None]:
+        """Fetch one changed product by id and normalize it into a product + its offer.
+
+        The offer is None when the product has no usable price (same rule as ``fetch_offers``).
+        """
+        raw = await self._client.get_product_by_id(external_id)
+        product = normalize.normalize_product(raw)
+        try:
+            offer = normalize.normalize_offer(raw, settlement_currency=account.settlement_currency)
+        except ValueError:
+            offer = None
+        return product, offer
+
     async def fetch_offers(self, account: AccountCtx) -> AsyncIterator[RawOffer]:
         currency = account.settlement_currency
         for category in await self._client.get_categories():

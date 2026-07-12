@@ -12,16 +12,21 @@ from sa_persistence.db import create_all
 from sa_persistence.outbox import OutboxRow
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from connector_brain.adapters.models import OfferIdentity, SupplierProductIdentity
+from connector_brain.adapters.models import (
+    OfferIdentity,
+    SupplierProductIdentity,
+    SyncWatermark,
+)
 
 
 async def create_schema(engine: AsyncEngine) -> None:
-    """Create the service's own tables (identity/offer state + outbox)."""
+    """Create the service's own tables (identity/offer state + watermark + outbox)."""
     await create_all(
         engine,
         tables=[
             SupplierProductIdentity.__table__,
             OfferIdentity.__table__,
+            SyncWatermark.__table__,
             OutboxRow.__table__,
         ],
     )
