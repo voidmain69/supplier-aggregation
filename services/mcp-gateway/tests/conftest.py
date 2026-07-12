@@ -4,7 +4,22 @@ from typing import Any
 
 import httpx
 import pytest
-from mcp_gateway.clients import CatalogClient, OfferClient
+from mcp_gateway.clients import CatalogClient, OfferClient, PriceHistoryClient
+
+_KNOWN_OFFER = "01J000000000000000OFFER1"
+_PRICE_POINTS = [
+    {"offer_id": _KNOWN_OFFER, "ts": "2026-07-10T10:00:00+00:00", "price_uah": "9900.0000"},
+    {"offer_id": _KNOWN_OFFER, "ts": "2026-07-11T10:00:00+00:00", "price_uah": "9500.0000"},
+]
+_PRICE_STATS = {
+    "offer_id": _KNOWN_OFFER,
+    "count": 2,
+    "min_uah": "9500.0000",
+    "max_uah": "9900.0000",
+    "avg_uah": "9700.0000",
+    "last_uah": "9500.0000",
+    "last_ts": "2026-07-11T10:00:00+00:00",
+}
 
 _PRODUCT = {
     "supplier_product_id": "01J0000000000000000PROD1",
@@ -63,6 +78,14 @@ class FakeBackends:
             if pid == _PRODUCT2["supplier_product_id"]:
                 return httpx.Response(200, json=_OFFER2)
             return httpx.Response(404, json={"type": "x/not-found", "status": 404})
+        if path == "/v1/price-history/stats":
+            oid = request.url.params.get("offer_id")
+            stats = _PRICE_STATS if oid == _KNOWN_OFFER else {"offer_id": oid, "count": 0}
+            return httpx.Response(200, json=stats)
+        if path == "/v1/price-history":
+            oid = request.url.params.get("offer_id")
+            items = _PRICE_POINTS if oid == _KNOWN_OFFER else []
+            return httpx.Response(200, json={"items": items, "next_cursor": None})
         return httpx.Response(404, json={"type": "x/not-found", "status": 404})
 
 
@@ -84,6 +107,11 @@ def catalog(http: httpx.AsyncClient) -> CatalogClient:
 @pytest.fixture
 def offer(http: httpx.AsyncClient) -> OfferClient:
     return OfferClient("http://offer", http)
+
+
+@pytest.fixture
+def price_history(http: httpx.AsyncClient) -> PriceHistoryClient:
+    return PriceHistoryClient("http://price-history", http)
 
 
 @pytest.fixture

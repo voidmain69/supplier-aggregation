@@ -67,3 +67,41 @@ class OfferClient:
             return None
         resp.raise_for_status()
         return dict(resp.json())
+
+
+class PriceHistoryClient:
+    def __init__(self, base_url: str, http: httpx.AsyncClient) -> None:
+        self._base = base_url.rstrip("/")
+        self._http = http
+
+    async def price_history(
+        self,
+        offer_id: str,
+        *,
+        from_: str | None = None,
+        to: str | None = None,
+        cursor: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"offer_id": offer_id, "limit": limit}
+        if from_ is not None:
+            params["from"] = from_
+        if to is not None:
+            params["to"] = to
+        if cursor is not None:
+            params["cursor"] = cursor
+        resp = await self._http.get(f"{self._base}/v1/price-history", params=params)
+        resp.raise_for_status()
+        return dict(resp.json())
+
+    async def price_stats(
+        self, offer_id: str, *, from_: str | None = None, to: str | None = None
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"offer_id": offer_id}
+        if from_ is not None:
+            params["from"] = from_
+        if to is not None:
+            params["to"] = to
+        resp = await self._http.get(f"{self._base}/v1/price-history/stats", params=params)
+        resp.raise_for_status()
+        return dict(resp.json())
