@@ -1,0 +1,53 @@
+"""Matching tables (on the shared persistence Base).
+
+``CanonicalProductRow`` is the platform's own product, aggregating supplier products that
+are the same thing. ``ProductLinkRow`` records which supplier product maps to which
+canonical product and how it was decided. ``ProcessedEvent`` makes consumption idempotent.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+
+from sa_persistence.db import Base
+from sqlalchemy import DateTime, Float, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from sa_core.time import utc_now
+
+
+class CanonicalProductRow(Base):
+    """A canonical (platform) product — the merge target for supplier products."""
+
+    __tablename__ = "canonical_product"
+
+    canonical_product_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    gtin: Mapped[str | None] = mapped_column(String(14), unique=True, default=None, index=True)
+    brand: Mapped[str | None] = mapped_column(String(255), default=None)
+    title: Mapped[str] = mapped_column(String(1024))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class ProductLinkRow(Base):
+    """A supplier product mapped to a canonical product, with how it was decided."""
+
+    __tablename__ = "product_link"
+
+    supplier_product_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    canonical_product_id: Mapped[str] = mapped_column(String(26), index=True)
+    link_id: Mapped[str] = mapped_column(String(26), unique=True)
+    method: Mapped[str] = mapped_column(String(16))  # gtin_auto | rag_suggested | manual
+    confidence: Mapped[float] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(16))  # auto | pending_review | confirmed | rejected
+    decided_by: Mapped[str] = mapped_column(String(64))
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class ProcessedEvent(Base):
+    """An event id the matching service has already handled (consumer dedupe)."""
+
+    __tablename__ = "matching_processed_events"
+
+    event_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

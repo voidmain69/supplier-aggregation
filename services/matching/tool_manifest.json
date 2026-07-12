@@ -1,0 +1,23 @@
+{
+  "service": "matching",
+  "tools": [
+    {
+      "name": "list_canonical_products",
+      "operation_id": "listCanonicalProducts",
+      "when_to_use": "Find the canonical product for a GTIN, or browse canonical products; cursor paginated.",
+      "when_not_to_use": "You need supplier-specific products (use the catalog service) or prices (use the offer service).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 100
+    },
+    {
+      "name": "get_canonical_product",
+      "operation_id": "getCanonicalProduct",
+      "when_to_use": "Fetch a single canonical product by its internal canonical_product_id (ULID).",
+      "when_not_to_use": "You only have a GTIN (use list_canonical_products with the gtin filter).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 50
+    }
+  ]
+}
