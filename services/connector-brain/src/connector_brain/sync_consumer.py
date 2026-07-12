@@ -3,9 +3,8 @@
 Consumes ``sync.job.requested`` (from sync-orchestrator) and drives the Brain connector to
 fetch + stage discovered/price-changed events. Run with ``python -m connector_brain.sync_consumer``.
 
-Raw responses are archived to S3/MinIO before normalization (hard rule 9). Production still
-needs a Vault-backed ``CredentialResolver`` (credentials_ref -> login/password); wire it in
-:func:`_credential_resolver`.
+Raw responses are archived to S3/MinIO before normalization (hard rule 9). Supplier credentials
+are resolved from Vault via ``credentials_ref`` (hard rule 6); see :func:`_credential_resolver`.
 """
 
 from __future__ import annotations
@@ -16,14 +15,20 @@ import httpx
 from sa_messaging import KafkaEventConsumer
 from sa_persistence.db import create_engine, create_session_factory
 
-from connector_brain.adapters.brain_client import BrainClient, CredentialResolver
+from connector_brain.adapters.brain_client import (
+    BrainClient,
+    CredentialResolver,
+    StaticCredentialResolver,
+)
 from connector_brain.adapters.s3_archive import S3RawArchive, build_s3_client
+from connector_brain.adapters.vault_credentials import VaultCredentialResolver, build_vault_client
 from connector_brain.connector import BrainConnector
 from connector_brain.events.sync_handler import ConnectorFactory, build_sync_handler
 from connector_brain.settings import Settings
 from sa_connector_sdk.dto import AccountCtx
 from sa_connector_sdk.raw_archive import RawArchive
 from sa_contracts import EVENT_REGISTRY
+from sa_core.errors import ConfigurationError
 
 _SYNC_REQUESTED = "sync.job.requested"
 
@@ -46,9 +51,20 @@ def build_connector_factory(
 
 
 def _credential_resolver(settings: Settings) -> CredentialResolver:
-    raise NotImplementedError(
-        "connector-brain sync-consumer needs a Vault-backed CredentialResolver "
-        "(credentials_ref -> login/password). Wire it here before running in production."
+    """Pick the credential resolver: Vault when configured, else a dev static fallback.
+
+    Production/stage set ``vault_addr`` and resolve every account's ``credentials_ref`` from
+    Vault. Local runs against a single test account may instead set ``dev_login``/``dev_password``.
+    """
+    if settings.vault_addr:
+        return VaultCredentialResolver(
+            client=build_vault_client(settings), mount_point=settings.vault_kv_mount
+        )
+    if settings.dev_login and settings.dev_password:
+        return StaticCredentialResolver(settings.dev_login, settings.dev_password)
+    raise ConfigurationError(
+        "no supplier credential source configured: set CONNECTOR_BRAIN_VAULT_ADDR "
+        "(+ token) for Vault, or CONNECTOR_BRAIN_DEV_LOGIN/DEV_PASSWORD for a local test account"
     )
 
 
