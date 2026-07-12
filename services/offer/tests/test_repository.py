@@ -11,11 +11,18 @@ from offer.adapters.repository import (
     upsert_offer,
 )
 from offer.domain.pricing import FinancialTerms
+from sa_persistence.outbox import fetch_unsent
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sa_contracts.events.supplier_offer_price_changed import SupplierOfferPriceChanged
 
 SessionFactory = async_sessionmaker[AsyncSession]
+
+
+async def _outbox_events(factory: SessionFactory) -> list[dict]:
+    async with factory() as session:
+        rows = await fetch_unsent(session, limit=100)
+        return [r.payload for r in rows]
 
 
 def _payload(
@@ -158,3 +165,47 @@ async def test_best_offer__ranks_by_effective_not_raw_uah(
         best = await best_offer_for_product(session, "01J0000000000000000PROD1")
     assert best is not None
     assert best.offer_id == "01J000000000000000OFFER01"  # 700 effective beats 1000
+
+
+async def test_upsert__emits_effective_price_changed_event(
+    sqlite_session_factory: SessionFactory,
+) -> None:
+    async with sqlite_session_factory() as session, session.begin():
+        await upsert_offer(session, _payload("01J000000000000000OFFER01", price_uah="1000.0000"))
+    events = await _outbox_events(sqlite_session_factory)
+    assert len(events) == 1
+    data = events[0]["data"]
+    assert events[0]["type"] == "offer.effective-price.changed"
+    assert data["offer_id"] == "01J000000000000000OFFER01"
+    assert data["new_effective_price_uah"] == "1000.0000"
+    assert data["old_effective_price_uah"] is None
+    assert data["cause"] == "price_changed"
+
+
+async def test_upsert__no_event_when_effective_unchanged(
+    sqlite_session_factory: SessionFactory,
+) -> None:
+    # Same price twice: the second upsert must not emit (effective did not move).
+    async with sqlite_session_factory() as session, session.begin():
+        await upsert_offer(session, _payload("01J000000000000000OFFER01", price_uah="1000.0000"))
+    async with sqlite_session_factory() as session, session.begin():
+        await upsert_offer(session, _payload("01J000000000000000OFFER01", price_uah="1000.0000"))
+    assert len(await _outbox_events(sqlite_session_factory)) == 1
+
+
+async def test_upsert_account_terms__emits_terms_changed_events(
+    sqlite_session_factory: SessionFactory,
+) -> None:
+    account = "01J0000000000000000ACCT1"
+    async with sqlite_session_factory() as session, session.begin():
+        await upsert_offer(
+            session, _payload("01J000000000000000OFFER01", account=account, price_uah="1000.0000")
+        )
+    async with sqlite_session_factory() as session, session.begin():
+        await upsert_account_terms(session, account, FinancialTerms(discount_pct=Decimal("0.20")))
+
+    events = await _outbox_events(sqlite_session_factory)
+    terms_events = [e for e in events if e["data"]["cause"] == "terms_changed"]
+    assert len(terms_events) == 1
+    assert terms_events[0]["data"]["new_effective_price_uah"] == "800.0000"
+    assert terms_events[0]["data"]["old_effective_price_uah"] == "1000.0000"

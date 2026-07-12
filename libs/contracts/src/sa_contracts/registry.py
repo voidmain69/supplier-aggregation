@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from sa_contracts.events.matching_link_confirmed import MatchingLinkConfirmed
+from sa_contracts.events.offer_effective_price_changed import OfferEffectivePriceChanged
 from sa_contracts.events.supplier_offer_price_changed import SupplierOfferPriceChanged
 from sa_contracts.events.supplier_product_discovered import SupplierProductDiscovered
 from sa_contracts.events.sync_job_requested import SyncJobRequested
@@ -13,6 +14,12 @@ EVENT_REGISTRY: dict[str, EventSpec] = {
         model=MatchingLinkConfirmed,
         topic="sa.matching.link",
         dataschema="https://contracts.sa.internal/events/matching.link.confirmed.json",
+    ),
+    "offer.effective-price.changed": EventSpec(
+        event_type="offer.effective-price.changed",
+        model=OfferEffectivePriceChanged,
+        topic="sa.offer.effective-price",
+        dataschema="https://contracts.sa.internal/events/offer.effective-price.changed.json",
     ),
     "supplier.offer.price-changed": EventSpec(
         event_type="supplier.offer.price-changed",
@@ -37,6 +44,7 @@ EVENT_REGISTRY: dict[str, EventSpec] = {
 __all__ = [
     "EVENT_REGISTRY",
     "MatchingLinkConfirmed",
+    "OfferEffectivePriceChanged",
     "SupplierOfferPriceChanged",
     "SupplierProductDiscovered",
     "SyncJobRequested",

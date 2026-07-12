@@ -10,7 +10,8 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from price_history.adapters.models import PricePointRow
+from price_history.adapters.models import EffectivePricePointRow, PricePointRow
+from sa_contracts.events.offer_effective_price_changed import OfferEffectivePriceChanged
 from sa_contracts.events.supplier_offer_price_changed import SupplierOfferPriceChanged
 from sa_core.pagination import decode_cursor, encode_cursor
 from sa_core.time import ensure_utc
@@ -35,6 +36,26 @@ async def append_price_point(session: AsyncSession, data: SupplierOfferPriceChan
             price=Decimal(data.new_price),
             currency=data.currency,
             price_uah=_decimal(data.price_uah),
+        )
+    )
+
+
+async def append_effective_point(session: AsyncSession, data: OfferEffectivePriceChanged) -> None:
+    """Append an effective-price point (idempotent on the composite key ``(offer_id, ts)``)."""
+    ts = ensure_utc(data.observed_at)
+    existing = await session.get(EffectivePricePointRow, (data.offer_id, ts))
+    if existing is not None:
+        return
+    session.add(
+        EffectivePricePointRow(
+            offer_id=data.offer_id,
+            ts=ts,
+            supplier_account_id=data.supplier_account_id,
+            supplier_product_id=data.supplier_product_id,
+            effective_price_uah=Decimal(data.new_effective_price_uah),
+            base_price=Decimal(data.base_price),
+            currency=data.currency,
+            cause=data.cause.value,
         )
     )
 
