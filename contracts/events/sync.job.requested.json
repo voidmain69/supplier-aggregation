@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sa.internal/events/sync.job.requested.json",
+  "title": "sync.job.requested",
+  "description": "The sync-orchestrator asks a supplier connector to run a sync for one account (schedule-driven). The connector fetches from the supplier and emits discovered/price-changed events. Topic: sa.sync.job, key: account_id.",
+  "type": "object",
+  "required": ["schema_version", "supplier_code", "account_id", "settlement_currency", "kind", "sync_job_id", "requested_at"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "supplier_code": { "type": "string", "description": "Supplier short code the connector is registered under, e.g. 'brain'" },
+    "account_id": { "type": "string", "description": "Account (ULID) to sync — a supplier can have several with different terms" },
+    "credentials_ref": {
+      "type": ["string", "null"],
+      "description": "Vault path to the account's credentials (a pointer, never the secret itself)"
+    },
+    "settlement_currency": { "type": "string", "description": "ISO-4217 code the account settles in, e.g. 'USD'" },
+    "kind": {
+      "enum": ["products", "offers", "all"],
+      "description": "What to sync: the product catalog, this account's offers (prices/stock), or both"
+    },
+    "sync_job_id": { "type": "string", "description": "ULID correlating every event produced by this sync run" },
+    "requested_at": { "type": "string", "format": "date-time", "description": "When the sync was requested (UTC, ISO 8601)" }
+  }
+}

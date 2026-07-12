@@ -58,6 +58,12 @@ SERVICES = [
         "pricehistory",
         {"price_point", "price_history_processed_events"},
     ),
+    ServiceMigrations(
+        "sync-orchestrator",
+        "SYNC_ORCHESTRATOR_DB_DSN",
+        "syncorch",
+        {"sync_schedule_state", "outbox"},
+    ),
 ]
 
 
