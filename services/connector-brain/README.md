@@ -20,15 +20,22 @@ canonical `RawProduct`/`RawOffer`/`RawCategory`/`RawStock`.
   product by id/articul/code, delta ids (`modified_products`), stocks, and offers
   (price + availability per account).
 
-## Events
+## Processes
 
-Event production via the transactional outbox lands in a follow-up increment (needs the
-service DB + Kafka wiring). This increment delivers the connector itself, verified offline.
+- `python -m connector_brain.sync_consumer` — consumes `sync.job.requested` (from the
+  sync-orchestrator) and drives a full account sync (`full_sync.run_account_sync`): fetch
+  categories → products → `sync_products`, and offers → `sync_offers`. Staged events go to
+  the outbox. **Needs a Vault-backed `CredentialResolver`** (`credentials_ref` → login/
+  password) — wire it in `sync_consumer._credential_resolver` before running in production.
+- `python -m connector_brain.relay` — ships the outbox to Kafka.
+
+## Events
 
 | Direction | Type | Topic |
 |---|---|---|
-| out (planned) | `supplier.product.discovered/updated` | `sa.supplier.product` |
-| out (planned) | `supplier.offer.price-changed` | `sa.supplier.offer` |
+| in | `sync.job.requested` | `sa.sync.job` |
+| out | `supplier.product.discovered` | `sa.supplier.product` |
+| out | `supplier.offer.price-changed` | `sa.supplier.offer` |
 
 ## Configuration
 
