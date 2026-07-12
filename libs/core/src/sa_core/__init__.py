@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from sa_core.errors import (
     AppError,
+    ConfigurationError,
     ConflictError,
     ForbiddenError,
     NotFoundError,
@@ -26,6 +27,7 @@ from sa_core.time import ensure_utc, isoformat, utc_now
 
 __all__ = [
     "AppError",
+    "ConfigurationError",
     "ConflictError",
     "ForbiddenError",
     "Money",

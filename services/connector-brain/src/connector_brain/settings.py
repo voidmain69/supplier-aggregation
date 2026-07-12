@@ -47,6 +47,23 @@ class Settings(BaseSettings):
     s3_secret_key: str = "sa_dev_only"  # noqa: S105 -- dev MinIO default, overridden by env in prod
     s3_region: str = "us-east-1"
 
+    # Supplier credentials: resolved from Vault at auth time via credentials_ref (hard rule 6).
+    # Leave vault_addr unset to fall back to dev_login/dev_password (local runs, one test account).
+    vault_addr: str | None = None
+    """Vault server URL. When set, the sync-consumer resolves supplier creds from Vault."""
+
+    vault_token: str | None = None
+    """Vault token (dev/CI); in k8s it is injected by external-secrets, never committed."""
+
+    vault_kv_mount: str = "secret"
+    """KV v2 mount that holds ``suppliers/<supplier>/<account>`` secrets."""
+
+    dev_login: str | None = None
+    """Dev fallback login (no Vault); use only against a test supplier account."""
+
+    dev_password: str | None = None
+    """Dev fallback password; pairs with dev_login when Vault is not configured."""
+
     otlp_endpoint: str | None = None
     env: str = "dev"
 
