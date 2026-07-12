@@ -5,17 +5,26 @@ from typing import Any
 
 from matching.adapters.models import CanonicalProductRow
 from matching.adapters.repository import create_canonical, get_link
+from matching.domain.embedding import HashingEmbedder, canonical_text
 from matching.events.handlers import build_discovered_handler
 from sa_persistence.relay import InMemoryPublisher, OutboxRelay
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 SessionFactory = async_sessionmaker[AsyncSession]
+_EMBEDDER = HashingEmbedder()
 
 
 async def _seed_canonical(factory: SessionFactory, *, brand: str, title: str) -> str:
     async with factory() as session, session.begin():
-        row = create_canonical(session, gtin=None, brand=brand, title=title, status="confirmed")
+        row = create_canonical(
+            session,
+            gtin=None,
+            brand=brand,
+            title=title,
+            status="confirmed",
+            embedding=_EMBEDDER.embed(canonical_text(title)),
+        )
         await session.flush()
         return row.canonical_product_id
 

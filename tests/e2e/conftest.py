@@ -23,7 +23,8 @@ def pg_base_dsn() -> Iterator[str]:
     """Session-wide Postgres; yields the asyncpg DSN of its default database."""
     from testcontainers.postgres import PostgresContainer  # noqa: PLC0415
 
-    with PostgresContainer("postgres:16-alpine") as postgres:
+    # pgvector image: the matching service's schema needs the `vector` extension.
+    with PostgresContainer("pgvector/pgvector:pg16") as postgres:
         yield _asyncpg(postgres.get_connection_url())
 
 

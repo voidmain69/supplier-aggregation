@@ -10,10 +10,16 @@ from __future__ import annotations
 from sa_persistence.db import create_all
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-# Import for side effect: register the catalog tables on Base.metadata before create_all.
-from catalog.adapters import models as _models  # noqa: F401
+from catalog.adapters.models import ProcessedEvent, ProductCanonicalLink, SupplierProductRow
 
 
 async def create_schema(engine: AsyncEngine) -> None:
-    """Create the catalog tables (supplier_product + processed_events)."""
-    await create_all(engine)
+    """Create the catalog's own tables (supplier_product, canonical link, processed_events)."""
+    await create_all(
+        engine,
+        tables=[
+            SupplierProductRow.__table__,
+            ProductCanonicalLink.__table__,
+            ProcessedEvent.__table__,
+        ],
+    )

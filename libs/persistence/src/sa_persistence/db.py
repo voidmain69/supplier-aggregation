@@ -7,6 +7,10 @@ live in the service; this is just the shared wiring.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import cast
+
+from sqlalchemy import FromClause, Table
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -30,7 +34,13 @@ def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessi
     return async_sessionmaker(engine, expire_on_commit=False)
 
 
-async def create_all(engine: AsyncEngine) -> None:
-    """Create all tables registered on :class:`Base` (tests/local; prod uses Alembic)."""
+async def create_all(engine: AsyncEngine, *, tables: Sequence[FromClause] | None = None) -> None:
+    """Create tables on :class:`Base` (tests/local; prod uses Alembic).
+
+    A service passes its own model ``__table__`` objects to create only its tables — the
+    shared ``Base.metadata`` holds every service's tables in one process (e.g. the test
+    suite), so an unscoped create_all would build another service's tables here.
+    """
+    scoped = cast("Sequence[Table] | None", tables)
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(Base.metadata.create_all, tables=scoped)

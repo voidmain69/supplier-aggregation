@@ -72,7 +72,11 @@ _ACCOUNT = AccountCtx(
 
 
 async def _create_databases(base_dsn: str) -> None:
-    """Create one database per service (CREATE DATABASE needs autocommit)."""
+    """Create one database per service (CREATE DATABASE needs autocommit).
+
+    Each service's create_schema builds only its own tables, so only matching's database
+    needs pgvector — and matching's create_schema enables the extension there itself.
+    """
     admin = create_async_engine(base_dsn, isolation_level="AUTOCOMMIT")
     try:
         async with admin.connect() as conn:
