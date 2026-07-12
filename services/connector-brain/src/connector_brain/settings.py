@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     kafka_bootstrap: str = "localhost:19092"
     """Broker the outbox relay publishes discovered/price-changed events to."""
 
+    sync_consumer_group: str = "connector-brain.sync"
+    """Consumer group for sync.job.requested (the sync-orchestrator's schedule trigger)."""
+
     base_url: str = "http://api.brain.com.ua"
     """Brain API base URL (see brain_api_documentation.md)."""
 
