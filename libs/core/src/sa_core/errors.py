@@ -52,6 +52,22 @@ class AppError(Exception):
         return problem
 
 
+class UnauthorizedError(AppError):
+    """No valid credentials were presented (missing/invalid bearer token)."""
+
+    code = "unauthorized"
+    http_status = 401
+    title = "Unauthorized"
+
+
+class ForbiddenError(AppError):
+    """Authenticated, but the principal lacks the scope required for this operation."""
+
+    code = "forbidden"
+    http_status = 403
+    title = "Forbidden"
+
+
 class NotFoundError(AppError):
     code = "not-found"
     http_status = 404

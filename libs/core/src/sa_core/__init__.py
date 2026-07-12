@@ -10,8 +10,10 @@ from __future__ import annotations
 from sa_core.errors import (
     AppError,
     ConflictError,
+    ForbiddenError,
     NotFoundError,
     RateLimitedError,
+    UnauthorizedError,
     UpstreamError,
     ValidationError,
 )
@@ -25,11 +27,13 @@ from sa_core.time import ensure_utc, isoformat, utc_now
 __all__ = [
     "AppError",
     "ConflictError",
+    "ForbiddenError",
     "Money",
     "NotFoundError",
     "OutboxRecord",
     "Page",
     "RateLimitedError",
+    "UnauthorizedError",
     "UpstreamError",
     "ValidationError",
     "compute_check_digit",
