@@ -9,11 +9,16 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from pgvector.sqlalchemy import Vector
 from sa_persistence.db import Base
-from sqlalchemy import DateTime, Float, String
+from sqlalchemy import JSON, DateTime, Float, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+from matching.domain.embedding import EMBEDDING_DIM
 from sa_core.time import utc_now
+
+# pgvector on Postgres; a portable JSON list on SQLite (unit tests) — same Python value.
+_EMBEDDING = Vector(EMBEDDING_DIM).with_variant(JSON(), "sqlite")
 
 
 class CanonicalProductRow(Base):
@@ -26,6 +31,8 @@ class CanonicalProductRow(Base):
     brand: Mapped[str | None] = mapped_column(String(255), default=None, index=True)
     title: Mapped[str] = mapped_column(String(1024))
     status: Mapped[str] = mapped_column(String(16), default="confirmed")  # confirmed | draft
+    # Embedding of `canonical_text(title)` for nearest-neighbour candidate search.
+    embedding: Mapped[list[float] | None] = mapped_column(_EMBEDDING, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 

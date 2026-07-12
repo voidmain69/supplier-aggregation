@@ -72,7 +72,12 @@ _ACCOUNT = AccountCtx(
 
 
 async def _create_databases(base_dsn: str) -> None:
-    """Create one database per service (CREATE DATABASE needs autocommit)."""
+    """Create one database per service (CREATE DATABASE needs autocommit).
+
+    Enable pgvector in each: this harness imports every service in one process, so the shared
+    ``Base.metadata`` contains matching's vector-typed table and ``create_all`` builds it in
+    each database (a test-only quirk — in production every service runs in its own process).
+    """
     admin = create_async_engine(base_dsn, isolation_level="AUTOCOMMIT")
     try:
         async with admin.connect() as conn:
@@ -80,6 +85,14 @@ async def _create_databases(base_dsn: str) -> None:
                 await conn.execute(text(f'CREATE DATABASE "{name}"'))
     finally:
         await admin.dispose()
+
+    for name in DATABASES:
+        engine = create_async_engine(dsn_for(base_dsn, name), isolation_level="AUTOCOMMIT")
+        try:
+            async with engine.connect() as conn:
+                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        finally:
+            await engine.dispose()
 
 
 async def _drain_one(bootstrap: str, *, group: str, topic: str, handler: EventHandler) -> None:

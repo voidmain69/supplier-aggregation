@@ -83,7 +83,7 @@ disallow_untyped_calls = false
 warn_return_any = false
 
 [[tool.mypy.overrides]]
-module = ["aiokafka.*", "alembic.*"]
+module = ["aiokafka.*", "alembic.*", "pgvector.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------------------

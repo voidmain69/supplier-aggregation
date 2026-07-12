@@ -91,7 +91,9 @@ async def _table_names(dsn: str) -> set[str]:
 def test_every_service_migration_upgrades_and_downgrades() -> None:
     from testcontainers.postgres import PostgresContainer  # noqa: PLC0415
 
-    with PostgresContainer("postgres:16-alpine") as postgres:
+    # pgvector image so matching's embedding migration (CREATE EXTENSION vector) runs;
+    # price-history's Timescale step is guarded and simply skips when the extension is absent.
+    with PostgresContainer("pgvector/pgvector:pg16") as postgres:
         base = _asyncpg(postgres.get_connection_url())
         for svc in SERVICES:
             asyncio.run(_create_database(base, svc.database))

@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from matching.adapters.models import CanonicalProductRow, ProductLinkRow
+from matching.domain.embedding import cosine
 from sa_core.ids import new_ulid
 from sa_core.pagination import decode_cursor, encode_cursor
 from sa_core.time import utc_now
@@ -31,23 +32,62 @@ def create_canonical(
     brand: str | None,
     title: str,
     status: str = "confirmed",
+    embedding: list[float] | None = None,
 ) -> CanonicalProductRow:
     """Create a canonical product (app-minted ULID; not yet flushed)."""
     row = CanonicalProductRow(
-        canonical_product_id=new_ulid(), gtin=gtin, brand=brand, title=title, status=status
+        canonical_product_id=new_ulid(),
+        gtin=gtin,
+        brand=brand,
+        title=title,
+        status=status,
+        embedding=embedding,
     )
     session.add(row)
     return row
 
 
-async def canonicals_for_matching(
-    session: AsyncSession, *, brand: str | None, limit: int = 500
-) -> Sequence[CanonicalProductRow]:
-    """Candidate canonicals to score against (bounded; filtered by brand when known)."""
-    stmt = select(CanonicalProductRow).limit(limit)
+async def nearest_canonical(
+    session: AsyncSession,
+    *,
+    embedding: list[float],
+    brand: str | None,
+    limit: int = 20,
+) -> tuple[CanonicalProductRow, float] | None:
+    """The most similar existing canonical to ``embedding`` (cosine), or ``None``.
+
+    On Postgres this is a pgvector nearest-neighbour search (``<=>``); on SQLite (unit tests)
+    it falls back to computing cosine in Python over the bounded candidate set. Filtered by
+    brand when known, so we never compare across brands.
+    """
+    if session.bind is not None and session.bind.dialect.name == "postgresql":
+        distance = CanonicalProductRow.embedding.cosine_distance(embedding)
+        stmt = (
+            select(CanonicalProductRow, distance.label("distance"))
+            .where(CanonicalProductRow.embedding.is_not(None))
+            .order_by(distance)
+            .limit(1)
+        )
+        if brand is not None:
+            stmt = stmt.where(CanonicalProductRow.brand == brand)
+        row = (await session.execute(stmt)).first()
+        if row is None:
+            return None
+        canonical, dist = row
+        return canonical, 1.0 - float(dist)
+
+    # SQLite / other: score the candidate set in Python.
+    stmt = (
+        select(CanonicalProductRow).where(CanonicalProductRow.embedding.is_not(None)).limit(limit)
+    )
     if brand is not None:
         stmt = stmt.where(CanonicalProductRow.brand == brand)
-    return (await session.execute(stmt)).scalars().all()
+    best: tuple[CanonicalProductRow, float] | None = None
+    for candidate in (await session.execute(stmt)).scalars().all():
+        score = cosine(embedding, list(candidate.embedding or []))
+        if best is None or score > best[1]:
+            best = (candidate, score)
+    return best
 
 
 def create_link(

@@ -12,6 +12,7 @@ dependencies = [
     "sa-contracts",
     "sa-observability",
     "alembic>=1.13",
+    "pgvector>=0.3",
     "sa-persistence",
     "sa-messaging",
 ]
