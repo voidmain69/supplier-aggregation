@@ -38,6 +38,27 @@ class SupplierProductRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
+class CanonicalProductRow(Base):
+    """The platform's canonical product card, owned by the catalog and rebuilt from its members.
+
+    Built by aggregating the supplier products linked to it (see domain.canonical); emitted as
+    ``catalog.product.updated`` for search indexing and offer cache invalidation. Named
+    ``catalog_product`` (not ``canonical_product``) because table names are globally unique on the
+    shared persistence Base, and matching keeps its own ``canonical_product`` (RAG embedding) table.
+    """
+
+    __tablename__ = "catalog_product"
+
+    canonical_product_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    gtin: Mapped[str | None] = mapped_column(String(14), default=None, index=True)
+    brand: Mapped[str | None] = mapped_column(String(255), default=None)
+    title: Mapped[str] = mapped_column(String(1024))
+    status: Mapped[str] = mapped_column(String(16), default="confirmed")
+    attributes: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    supplier_product_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class ProductCanonicalLink(Base):
     """Which canonical product a supplier product maps to (from matching.link.confirmed).
 

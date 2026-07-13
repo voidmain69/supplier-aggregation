@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sa.internal/events/catalog.product.updated.json",
+  "title": "catalog.product.updated",
+  "description": "The catalog rebuilt a canonical product card after a supplier product was (re)linked to it. Emitted on matching.link.confirmed; consumed by search (indexing) and offer (cache invalidation). Topic: sa.catalog.product, key: canonical_product_id.",
+  "type": "object",
+  "required": ["schema_version", "canonical_product_id", "title", "status", "supplier_product_ids", "updated_at"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "canonical_product_id": {
+      "type": "string",
+      "description": "ULID of the canonical (platform) product this card describes."
+    },
+    "title": {
+      "type": "string",
+      "description": "Canonical product title, derived from its member supplier products."
+    },
+    "brand": {
+      "type": ["string", "null"],
+      "description": "Canonical brand, if a member carries one."
+    },
+    "gtin": {
+      "type": ["string", "null"],
+      "description": "Representative normalized GTIN-14 of the product, if any member has one."
+    },
+    "status": {
+      "enum": ["confirmed", "draft"],
+      "description": "Card status. Cards are emitted for confirmed canonicals; 'draft' reserved for future flows."
+    },
+    "supplier_product_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Supplier products currently linked to this canonical (its members)."
+    },
+    "attributes": {
+      "type": "object",
+      "description": "Merged product attributes aggregated from the member supplier products."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the card was last rebuilt (UTC)."
+    }
+  }
+}

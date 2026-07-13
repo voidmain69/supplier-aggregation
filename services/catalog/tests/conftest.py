@@ -85,22 +85,26 @@ def link_confirmed_event() -> Callable[..., dict[str, Any]]:
         supplier_product_id: str,
         canonical_product_id: str,
         event_id: str | None = None,
+        previous_canonical_product_id: str | None = None,
     ) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "schema_version": 1,
+            "link_id": "01J0000000000000000LINK1",
+            "supplier_product_id": supplier_product_id,
+            "canonical_product_id": canonical_product_id,
+            "method": "gtin_auto",
+            "confidence": 1.0,
+            "decided_by": "system",
+            "decided_at": "2026-07-11T10:00:00Z",
+        }
+        if previous_canonical_product_id is not None:
+            data["previous_canonical_product_id"] = previous_canonical_product_id
         envelope = make_cloud_event(
             type="matching.link.confirmed",
             source="//sa/matching",
             subject=supplier_product_id,
             dataschema="https://contracts.sa.internal/events/matching.link.confirmed.json",
-            data={
-                "schema_version": 1,
-                "link_id": "01J0000000000000000LINK1",
-                "supplier_product_id": supplier_product_id,
-                "canonical_product_id": canonical_product_id,
-                "method": "gtin_auto",
-                "confidence": 1.0,
-                "decided_by": "system",
-                "decided_at": "2026-07-11T10:00:00Z",
-            },
+            data=data,
         )
         if event_id is not None:
             envelope["id"] = event_id

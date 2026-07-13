@@ -8,18 +8,26 @@ head`` (or ``make migrate svc=catalog``).
 from __future__ import annotations
 
 from sa_persistence.db import create_all
+from sa_persistence.outbox import OutboxRow
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from catalog.adapters.models import ProcessedEvent, ProductCanonicalLink, SupplierProductRow
+from catalog.adapters.models import (
+    CanonicalProductRow,
+    ProcessedEvent,
+    ProductCanonicalLink,
+    SupplierProductRow,
+)
 
 
 async def create_schema(engine: AsyncEngine) -> None:
-    """Create the catalog's own tables (supplier_product, canonical link, processed_events)."""
+    """Create the catalog tables (supplier_product, canonical_product, link, processed, outbox)."""
     await create_all(
         engine,
         tables=[
             SupplierProductRow.__table__,
+            CanonicalProductRow.__table__,
             ProductCanonicalLink.__table__,
             ProcessedEvent.__table__,
+            OutboxRow.__table__,
         ],
     )
