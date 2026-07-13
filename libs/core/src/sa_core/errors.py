@@ -109,3 +109,16 @@ class UpstreamError(AppError):
     code = "upstream-error"
     http_status = 502
     title = "Bad Gateway"
+
+
+class ConfigurationError(AppError):
+    """A required piece of runtime configuration is missing or malformed.
+
+    Raised for operator-facing setup problems — an unset secrets backend, a Vault secret
+    missing an expected key — not for bad client input. The ``detail`` should name the
+    missing knob so it can be fixed without reading the code.
+    """
+
+    code = "configuration-error"
+    http_status = 500
+    title = "Internal Server Error"
