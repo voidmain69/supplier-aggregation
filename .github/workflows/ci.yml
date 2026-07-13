@@ -81,3 +81,30 @@ jobs:
           rc=$?
           # exit code 5 = no tests collected (no integration tests yet) — not a failure
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 5 ]; then exit "$rc"; fi
+
+  curation-ui:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/curation-ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: apps/curation-ui/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Types match the committed gateway contract
+        run: |
+          pnpm generate:api
+          git diff --exit-code -- src/shared/api/schema.gen.ts \
+            || (echo "::error::schema.gen.ts is stale — run 'pnpm generate:api' and commit"; exit 1)
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm format
+      - run: pnpm test
+      - run: pnpm build

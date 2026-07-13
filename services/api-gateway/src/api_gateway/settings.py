@@ -36,5 +36,12 @@ class Settings(BaseSettings):
     rate_limit_per_second: float = 20.0
     rate_limit_burst: int = 40
 
+    # CORS allowlist for browser SPAs (e.g. curation-ui). Empty = no browser origin allowed.
+    # Exact origins only (scheme+host+port), never "*": the gateway is credentialed.
+    cors_allow_origins: list[str] = Field(
+        default_factory=list,
+        description="Exact browser origins allowed to call the gateway (e.g. the curation-ui URL).",
+    )
+
     otlp_endpoint: str | None = None
     env: str = "dev"

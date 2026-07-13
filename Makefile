@@ -1,6 +1,9 @@
 # Single entry point for the dev loop. Works in Git Bash / WSL / Linux / macOS.
 
-.PHONY: up down lint test test-integration check contracts openapi clients scaffold migrate ci
+.PHONY: up down lint test test-integration check contracts openapi clients scaffold migrate ci \
+	ui-install ui-dev ui-lint ui-test ui-build
+
+UI_DIR = apps/curation-ui
 
 up:
 	docker compose -f infra/compose.yaml up -d
@@ -42,3 +45,19 @@ migrate:   # apply a service's migrations, e.g. `make migrate svc=catalog`
 	uv run alembic -c services/$(svc)/alembic.ini upgrade head
 
 ci: lint test check
+
+# --- curation-ui (frontend; separate pnpm project, not the uv workspace) -------
+ui-install:
+	cd $(UI_DIR) && pnpm install --frozen-lockfile
+
+ui-dev:
+	cd $(UI_DIR) && pnpm dev
+
+ui-lint:
+	cd $(UI_DIR) && pnpm lint && pnpm typecheck && pnpm format
+
+ui-test:
+	cd $(UI_DIR) && pnpm test
+
+ui-build:
+	cd $(UI_DIR) && pnpm build

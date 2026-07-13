@@ -771,6 +771,231 @@
         ]
       }
     },
+    "/v1/canonical-products": {
+      "get": {
+        "tags": [
+          "gateway"
+        ],
+        "summary": "List canonical products",
+        "description": "List canonical (platform) products, optionally filtered by normalized GTIN-14. Cursor-paginated. Use it to resolve the canonical product a match suggestion points at, or to browse the confirmed catalog. Requires scope `catalog:read`.",
+        "operationId": "listCanonicalProducts",
+        "parameters": [
+          {
+            "name": "gtin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by normalized GTIN-14 (14 digits).",
+              "title": "Gtin"
+            },
+            "description": "Filter by normalized GTIN-14 (14 digits)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous response's next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque cursor from a previous response's next_cursor."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Max items per page (1-200).",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Max items per page (1-200)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required scope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-principal rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "A downstream service was unreachable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/canonical-products/{canonical_product_id}": {
+      "get": {
+        "tags": [
+          "gateway"
+        ],
+        "summary": "Get one canonical product",
+        "description": "Fetch a single canonical product by its internal canonical_product_id (ULID). Use it to render the candidate side of a match review. Requires scope `catalog:read`.",
+        "operationId": "getCanonicalProduct",
+        "parameters": [
+          {
+            "name": "canonical_product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Canonical product id (ULID).",
+              "title": "Canonical Product Id"
+            },
+            "description": "Canonical product id (ULID)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required scope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-principal rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "A downstream service was unreachable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource does not exist.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/curation/queue": {
       "get": {
         "tags": [

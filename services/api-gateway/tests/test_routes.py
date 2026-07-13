@@ -63,6 +63,47 @@ async def test_confirm_link__forwards_post_to_matching(
     assert str(sent.url) == "http://matching.test/v1/curation/links/01JSP/confirm"
 
 
+async def test_confirm_link__forwards_operator_id_from_principal(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    async with client(S.MATCHING_CURATE) as c:
+        await c.post("/v1/curation/links/01JSP/confirm", headers=auth)
+    sent = backend.requests[-1]
+    # The gateway sets the operator identity from the authenticated principal, not the client.
+    assert sent.headers["x-operator-id"] == "agent:test"
+
+
+async def test_reject_link__forwards_operator_id_from_principal(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    async with client(S.MATCHING_CURATE) as c:
+        await c.post("/v1/curation/links/01JSP/reject", headers=auth)
+    sent = backend.requests[-1]
+    assert sent.headers["x-operator-id"] == "agent:test"
+
+
+async def test_list_canonical_products__forwards_to_matching(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    async with client(S.CATALOG_READ) as c:
+        resp = await c.get(
+            "/v1/canonical-products", params={"gtin": "04006381333931"}, headers=auth
+        )
+    assert resp.status_code == 200
+    sent = backend.requests[-1]
+    assert str(sent.url).startswith("http://matching.test/v1/canonical-products")
+    assert sent.url.params["gtin"] == "04006381333931"
+
+
+async def test_get_canonical_product__forwards_to_matching(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    async with client(S.CATALOG_READ) as c:
+        await c.get("/v1/canonical-products/01JCANON", headers=auth)
+    sent = backend.requests[-1]
+    assert str(sent.url) == "http://matching.test/v1/canonical-products/01JCANON"
+
+
 async def test_downstream_404__is_relayed_as_problem_json(
     client: ClientFactory, backend: Any, auth: Headers
 ) -> None:

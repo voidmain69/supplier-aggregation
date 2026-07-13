@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, Header, Path, Query
 from sa_persistence.outbox import enqueue
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +23,11 @@ from sa_core.time import utc_now
 
 router = APIRouter(prefix="/v1/curation", tags=["curation"])
 
-_OPERATOR = "operator"  # operator identity comes from the API gateway (auth) — a follow-up
+# The operator identity is set by the API gateway from the authenticated principal and passed
+# as ``X-Operator-Id`` (a trusted, gateway-only header — matching is not publicly reachable).
+# Direct calls without the gateway fall back to a generic label so the audit is never blank.
+_OPERATOR_HEADER = "X-Operator-Id"
+_OPERATOR_FALLBACK = "operator"
 _ERRORS: dict[int | str, dict[str, object]] = {
     404: {"model": Problem, "description": "No such curation item."},
     409: {"model": Problem, "description": "Item already decided."},
@@ -78,7 +82,11 @@ async def list_queue(
 async def confirm_link(
     supplier_product_id: Annotated[str, Path(description="Supplier product id (ULID) to confirm.")],
     session: Annotated[AsyncSession, Depends(get_session)],
+    x_operator_id: Annotated[
+        str | None, Header(alias=_OPERATOR_HEADER, include_in_schema=False)
+    ] = None,
 ) -> LinkDecisionOut:
+    operator = x_operator_id or _OPERATOR_FALLBACK
     link = await get_link(session, supplier_product_id)
     if link is None:
         raise NotFoundError(
@@ -95,7 +103,7 @@ async def confirm_link(
         )
 
     link.status = "confirmed"
-    link.decided_by = _OPERATOR
+    link.decided_by = operator
     link.decided_at = utc_now()
     canonical = await get_canonical(session, link.canonical_product_id)
     if canonical is not None and canonical.status == "draft":
@@ -108,7 +116,7 @@ async def confirm_link(
             canonical_product_id=link.canonical_product_id,
             method="manual",
             confidence=link.confidence,
-            decided_by=_OPERATOR,
+            decided_by=operator,
             decided_at=link.decided_at,
         ),
     )
@@ -134,7 +142,11 @@ async def confirm_link(
 async def reject_link(
     supplier_product_id: Annotated[str, Path(description="Supplier product id (ULID) to reject.")],
     session: Annotated[AsyncSession, Depends(get_session)],
+    x_operator_id: Annotated[
+        str | None, Header(alias=_OPERATOR_HEADER, include_in_schema=False)
+    ] = None,
 ) -> LinkDecisionOut:
+    operator = x_operator_id or _OPERATOR_FALLBACK
     link = await get_link(session, supplier_product_id)
     if link is None:
         raise NotFoundError(
@@ -145,7 +157,7 @@ async def reject_link(
         raise ConflictError("This link was confirmed and cannot be rejected.")
     if link.status != "rejected":
         link.status = "rejected"
-        link.decided_by = _OPERATOR
+        link.decided_by = operator
         link.decided_at = utc_now()
         await session.commit()
     return LinkDecisionOut(
