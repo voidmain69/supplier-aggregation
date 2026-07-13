@@ -108,6 +108,57 @@
         ]
       }
     },
+    "/v1/search/hybrid": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Hybrid product search (lexical + semantic, reranked)",
+        "description": "Best-quality search: retrieves candidates both lexically (exact tokens) and semantically (embedding meaning), fuses them with Reciprocal Rank Fusion, then reorders with a cross-encoder reranker. Use this when you want the single best-ranked list and don't need pagination; each hit carries a relevance score. Prefer the by-code/articul/gtin lookups for exact identifiers.",
+        "operationId": "hybridSearch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HybridSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SearchHit"
+                  },
+                  "type": "array",
+                  "title": "Response Hybridsearch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/search/by-code/{code}": {
       "get": {
         "tags": [
@@ -286,6 +337,38 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HybridSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Query text — keywords or a natural-language need. Matched by both lexical (exact tokens) and semantic (meaning) retrieval, fused, then reranked for relevance."
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Max hits to return (1-100).",
+            "default": 20
+          },
+          "pool": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Pool",
+            "description": "Candidates retrieved per method before fusion/rerank; larger = more recall.",
+            "default": 50
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "HybridSearchRequest",
+        "description": "A hybrid query: lexical + semantic candidates are fused (RRF) then cross-encoder reranked."
+      },
       "Page_SearchHit_": {
         "properties": {
           "items": {
@@ -399,7 +482,7 @@
               }
             ],
             "title": "Score",
-            "description": "Semantic similarity in [0,1] (higher is closer); null for lexical hits."
+            "description": "Relevance score, higher is better: cosine similarity in [0,1] for semantic search, cross-encoder relevance for hybrid search; null for plain lexical hits."
           }
         },
         "type": "object",

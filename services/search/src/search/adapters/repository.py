@@ -112,6 +112,23 @@ async def search(
     return rows, next_cursor
 
 
+async def lexical_candidates(
+    session: AsyncSession, query: str, *, limit: int = 50
+) -> list[SearchDocumentRow]:
+    """Token-AND lexical matches as a ranked candidate pool for hybrid fusion (no cursor).
+
+    Same matching as :func:`search` but returns a bounded, deterministically ordered list to feed
+    Reciprocal Rank Fusion. An empty query (no usable tokens) returns nothing.
+    """
+    tokens = tokenize(query)
+    if not tokens:
+        return []
+    stmt = select(SearchDocumentRow).order_by(SearchDocumentRow.supplier_product_id).limit(limit)
+    for token in tokens:
+        stmt = stmt.where(SearchDocumentRow.search_text.like(f"%{token}%"))
+    return list((await session.execute(stmt)).scalars().all())
+
+
 async def find_by_code(session: AsyncSession, code: str) -> Sequence[SearchDocumentRow]:
     """Exact match on the supplier's product code (external_code) or external_id."""
     stmt = select(SearchDocumentRow).where(

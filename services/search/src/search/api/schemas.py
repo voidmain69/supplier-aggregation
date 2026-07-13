@@ -41,6 +41,25 @@ class SemanticSearchRequest(BaseModel):
     limit: int = Field(default=20, ge=1, le=100, description="Max hits to return (1-100).")
 
 
+class HybridSearchRequest(BaseModel):
+    """A hybrid query: lexical + semantic candidates are fused (RRF) then cross-encoder reranked."""
+
+    query: str = Field(
+        description=(
+            "Query text — keywords or a natural-language need. Matched by both lexical (exact "
+            "tokens) and semantic (meaning) retrieval, fused, then reranked for relevance."
+        ),
+        min_length=1,
+    )
+    limit: int = Field(default=20, ge=1, le=100, description="Max hits to return (1-100).")
+    pool: int = Field(
+        default=50,
+        ge=1,
+        le=200,
+        description="Candidates retrieved per method before fusion/rerank; larger = more recall.",
+    )
+
+
 class SearchHit(BaseModel):
     """One matching product. ``score`` is set for semantic results (cosine similarity, 0-1)."""
 
@@ -55,7 +74,10 @@ class SearchHit(BaseModel):
     )
     score: float | None = Field(
         default=None,
-        description="Semantic similarity in [0,1] (higher is closer); null for lexical hits.",
+        description=(
+            "Relevance score, higher is better: cosine similarity in [0,1] for semantic search, "
+            "cross-encoder relevance for hybrid search; null for plain lexical hits."
+        ),
     )
 
     @classmethod

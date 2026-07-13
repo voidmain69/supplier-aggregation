@@ -14,6 +14,8 @@ class Settings(BaseSettings):
 
     # Base URL of a Text-Embeddings-Inference server (bge-m3). Unset => offline HashingEmbedder.
     embedder_url: str | None = None
+    # TEI cross-encoder (bge-reranker) URL for hybrid rerank. Unset => offline NoopReranker.
+    reranker_url: str | None = None
 
     otlp_endpoint: str | None = None
     env: str = "dev"
