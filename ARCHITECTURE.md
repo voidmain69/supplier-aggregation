@@ -102,6 +102,13 @@
 | 6 | Матчинг | GTIN-детермінований auto-link + RAG-кандидати + **обов'язкова людська курація** | [ADR-0004](docs/adr/0004-matching-pipeline.md) |
 | 7 | AI-готовність | OpenAPI 3.1 з описами під LLM + `tool_manifest.json` на кожен сервіс + єдиний **MCP Gateway** | [ADR-0005](docs/adr/0005-ai-tools-ready.md) |
 | 8 | Мікросервіси | 9 сервісів + 6 бібліотек; **1 сервіс = 1 БД-схема**, спільної БД між сервісами немає | цей документ |
+| 9 | Надійність подій | **DLQ + обмежені ретраї** + `tools/replay_dlq.py`; консюмери ідемпотентні | [ADR-0006](docs/adr/0006-dead-letter-queue.md) |
+| 10 | Ціноутворення | **Pricing Engine**: `effective_price` = база × умови акаунта → подія `offer.effective-price.changed` | [ADR-0007](docs/adr/0007-pricing-engine.md) |
+| 11 | Дельта-синк | `modified_products` + **watermark** per account (замість повного скану щоразу) | [ADR-0008](docs/adr/0008-delta-sync-watermark.md) |
+| 12 | Пошук | `search-service`: лексика (FTS `tsvector`) + семантика (pgvector) як окремі режими | [ADR-0009](docs/adr/0009-search-service.md) |
+| 13 | Історія цін | Портативний SQL + **Timescale** (continuous aggregate + compression) під масштаб | [ADR-0010](docs/adr/0010-portable-query-native-scale.md) |
+| 14 | Гібридний пошук | **RRF-злиття** лексики/семантики/splade + **cross-encoder rerank** (TEI, офлайн-дефолт) | [ADR-0011](docs/adr/0011-hybrid-search-rerank.md) |
+| 15 | Власність канонічної картки | **catalog** складає картку (`build_canonical_card` → `catalog.product.updated`); matching лише вирішує членство | [ADR-0012](docs/adr/0012-catalog-owns-canonical.md) |
 
 **Чому монорепо + мікросервіси + події (а не щось одне):**
 
@@ -282,15 +289,24 @@ class SupplierConnector(Protocol):
 - Патерн: publishes `sync.job.requested`, конектор виконує, звітує `sync.job.completed` з метриками (items, changed, errors).
 - Ідемпотентність джобів (`sync_job_id`), захист від накладання (не запускати нову повну, поки йде попередня), 
   ескалація в алерт при N поспіль фейлів.
+- **Read/trigger API** (для curation-ui моніторингу): `GET /v1/sync/accounts` — стан кожного акаунта
+  (supplier, kind, mode, interval, `last_requested_at`, `next_due_at`, статус `never|ok|overdue`; **без**
+  `credentials_ref` та фінансових умов — hard-rule 6), `POST /v1/sync/accounts/{id}/trigger` — ручний
+  синк «зараз» (емітить `sync.job.requested` через outbox). Окремий процес від планувальника й relay.
 
 ### 5.3 `catalog-service`
 
-- Власник `SupplierProduct`, `CanonicalProduct`, `Category`, мапінгу категорій.
-- Консюмить `supplier.product.*` → upsert SupplierProduct → тригерить matching (подія `matching.candidate.requested`).
-- Збирає канонічну картку: правила мерджу полів (пріоритет постачальника-джерела per-field, provenance зберігається).
+- Власник `SupplierProduct`, канонічної **картки** товару (`CanonicalProduct`), `Category`, мапінгу категорій.
+- Консюмить `supplier.product.*` → upsert SupplierProduct → тригерить matching.
+- **Власник канонічної картки** ([ADR-0012](docs/adr/0012-catalog-owns-canonical.md)): консюмить
+  `matching.link.confirmed` → прив'язує товар постачальника до канонічного (`set_canonical_link`) →
+  детерміновано **перебудовує картку** чистою функцією `build_canonical_card` (члени за `supplier_product_id`,
+  найменший id — представник title; brand/gtin — перший член, що має; атрибути мерджаться, нижчий id виграє).
+  На merge/split перебудовує і `previous_canonical_product_id`.
 - REST: `GET /products/{id}`, `GET /products?gtin=&mpn=&supplier=&category=`, `GET /categories/tree`,
   `GET /suppliers/{id}/products/{external_id}`.
-- Продукує `catalog.product.updated` (для search-індексації та кеш-інвалідації).
+- Продукує `catalog.product.updated` — **єдине джерело істини** канонічної картки для `search` (індексація)
+  і `offer` (інвалідація кешу).
 
 ### 5.4 `matching-service`
 
@@ -304,11 +320,14 @@ class SupplierConnector(Protocol):
 3. **Черга курації** — кандидати з `confidence >= threshold_low` потрапляють у `pending_review`;
    нижче — новий CanonicalProduct створюється як `draft` (теж на підтвердження).
 4. **Рішення оператора** — confirm / reject / merge / split / create-new. Кожне рішення — подія
-   `matching.link.confirmed|rejected` + повний аудит-лог (хто, коли, що бачив).
+   `matching.link.confirmed|rejected` + запис у **журнал рішень** (append-only аудит-лог: хто, коли,
+   яка дія, до/після). matching лише **вирішує членство** й емітить `matching.link.confirmed`; складання
+   канонічної картки — за каталогом ([ADR-0012](docs/adr/0012-catalog-owns-canonical.md)).
 5. **Feedback loop** — підтвердження/відхилення зберігаються як розмічені пари для тюнінгу порогів і моделей.
 
 REST для Curation UI: черга з пріоритезацією (нові товари з оферами → вище), side-by-side порівняння характеристик,
-батч-операції.
+журнал рішень (`GET /v1/curation/decisions`) і зведена статистика оператора (`GET /v1/curation/stats`).
+Канонічні reads (`GET /v1/canonical-products`) наразі обслуговує matching (перенесення на catalog — відкладено).
 
 ### 5.5 `offer-service`
 
@@ -333,21 +352,27 @@ REST для Curation UI: черга з пріоритезацією (нові т
 
 Єдина точка пошуку для людей і агентів:
 
-- **Лексичний**: PostgreSQL FTS (укр/рос/eng конфіги) по назві, артикулу, кодах — точні запити
+- **Лексичний**: PostgreSQL FTS (`tsvector`-ранжування) по назві, артикулу, кодах — точні запити
   "по артикулу / по коду товару".
-- **Векторний (RAG)**: pgvector по ембедингах канонічних товарів і товарів постачальників —
-  «непрямі абстрактні запити» ("материнка під Ryzen 9000 з Wi-Fi 7").
-- **Гібрид**: RRF-злиття лексичного і векторного скорингу + фільтри (категорія, бренд, постачальник,
-  наявність, ціновий діапазон).
-- Індексація по подіях `catalog.product.updated`; embedding-воркер — окремий консюмер з батчингом.
+- **Векторний (RAG)**: pgvector (bge-m3 через TEI, офлайн-дефолт — hashing-ембедер) по ембедингах
+  канонічних товарів і товарів постачальників — «непрямі абстрактні запити» ("материнка під Ryzen 9000").
+- **Learned-sparse (SPLADE)**: `sparsevec` (splade через TEI) — третій ретрівер, опційний
+  (`SEARCH_SPARSE_EMBEDDER_URL`); не налаштовано — просто вимкнено.
+- **Гібрид** ([ADR-0011](docs/adr/0011-hybrid-search-rerank.md)): `POST /v1/search/hybrid` — конвеєр
+  retrieve → **RRF-злиття** (лексика + семантика + splade, `k=60`, без нормалізації) → **cross-encoder
+  rerank** (bge-reranker через TEI, дефолт `NoopReranker` тримає RRF-порядок без GPU) + фільтри.
+- Індексація по подіях `catalog.product.updated` — окремий `canonical_document` + ендпоінт
+  `/v1/search/canonical` (повертає canonical ids); embedding-воркер — консюмер з батчингом.
 - REST: `POST /search` (structured query DSL), `POST /search/semantic` (natural language),
-  `GET /search/by-code/{code}`, `GET /search/by-articul/{articul}`.
+  `POST /v1/search/hybrid`, `GET /search/by-code/{code}`, `GET /search/by-articul/{articul}`.
 
 ### 5.8 `api-gateway`
 
-- Єдина точка входу для сервісів компанії: маршрутизація, **аутентифікація** (API keys для сервісів, OIDC для людей),
-  авторизація по скоупах (`catalog:read`, `prices:read`, `matching:curate`), rate limiting per consumer,
-  агрегований OpenAPI, версіонування `/v1/*`.
+- Єдина точка входу для сервісів компанії: маршрутизація, **аутентифікація** (bearer-токен за SHA-256-хешем →
+  принципал зі скоупами; OIDC для людей — відкладено), авторизація по скоупах (`catalog:read`, `offers:read`,
+  `prices:read`, `matching:curate`, `sync:read`), rate limiting per principal, агрегований OpenAPI, `/v1/*`.
+- Проксує зокрема `GET /v1/curation/stats` (дашборд), `GET /v1/sync/accounts` + `POST /v1/sync/accounts/{id}/trigger`
+  (моніторинг синків) на відповідні сервіси.
 - Тонкий: без бізнес-логіки, тільки крос-каттинг.
 
 ### 5.9 `mcp-gateway`
