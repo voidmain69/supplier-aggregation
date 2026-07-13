@@ -61,6 +61,19 @@ export interface LinkDecision {
   status: string;
 }
 
+/** One entry in the curation decision journal (mirrors DecisionOut from the matching service). */
+export interface Decision {
+  decision_id: string;
+  action: string;
+  supplier_product_id: string | null;
+  canonical_product_id: string;
+  method: string | null;
+  confidence: number | null;
+  operator: string;
+  note: string | null;
+  decided_at: string;
+}
+
 /** Body for creating a brand-new canonical from a curation item (mirrors CreateCanonicalIn). */
 export interface CreateCanonicalInput {
   title: string;
