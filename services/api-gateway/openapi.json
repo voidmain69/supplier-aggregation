@@ -996,6 +996,114 @@
         ]
       }
     },
+    "/v1/canonical-products/{canonical_product_id}/merge": {
+      "post": {
+        "tags": [
+          "gateway"
+        ],
+        "summary": "Merge one canonical product into another",
+        "description": "Fold a source canonical into this (target) one: its supplier-product links move to the target and the source is removed. Use it to deduplicate canonical products. Requires scope `matching:curate`.",
+        "operationId": "mergeCanonicalProducts",
+        "parameters": [
+          {
+            "name": "canonical_product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Target canonical id (ULID) to keep.",
+              "title": "Canonical Product Id"
+            },
+            "description": "Target canonical id (ULID) to keep."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeCanonicalIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required scope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-principal rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "A downstream service was unreachable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource does not exist.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/curation/queue": {
       "get": {
         "tags": [
@@ -1300,10 +1408,158 @@
           }
         ]
       }
+    },
+    "/v1/curation/links/{supplier_product_id}/create-new": {
+      "post": {
+        "tags": [
+          "gateway"
+        ],
+        "summary": "Create a new canonical from a curation item",
+        "description": "Reject the suggested candidate and create a brand-new canonical product from this supplier product, linking it confirmed. Use it when the suggestion is wrong and no existing canonical fits. Requires scope `matching:curate`.",
+        "operationId": "createNewCanonical",
+        "parameters": [
+          {
+            "name": "supplier_product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Supplier product id (ULID).",
+              "title": "Supplier Product Id"
+            },
+            "description": "Supplier product id (ULID)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCanonicalIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required scope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-principal rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "A downstream service was unreachable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource does not exist.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
+      "CreateCanonicalIn": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Title",
+            "description": "Canonical title for the new product; prefill from the supplier."
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand",
+            "description": "Brand/vendor name, if known."
+          },
+          "gtin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gtin",
+            "description": "Normalized GTIN-14 to assign; must not already belong to another canonical."
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "CreateCanonicalIn",
+        "description": "Fields for a brand-new canonical product created from a curation item (mirrors matching)."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1316,6 +1572,21 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "MergeCanonicalIn": {
+        "properties": {
+          "source_canonical_product_id": {
+            "type": "string",
+            "title": "Source Canonical Product Id",
+            "description": "The canonical to merge FROM; it is removed and its links move to the target."
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_canonical_product_id"
+        ],
+        "title": "MergeCanonicalIn",
+        "description": "Which canonical to fold into the target (mirrors matching)."
       },
       "Problem": {
         "properties": {
