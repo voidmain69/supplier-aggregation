@@ -1,8 +1,9 @@
 """Pure query/text helpers for lexical search (no I/O, no framework).
 
-Lexical matching is deliberately simple: a document's searchable text is the lowercased
-concatenation of its name, brand, articul and codes; a query is tokenized the same way and
-every token must appear (AND). PostgreSQL FTS ranking is a later refinement — see the README.
+A document's searchable text is the lowercased concatenation of its name, brand, articul and
+codes; a query is tokenized the same way and all terms must match (AND). PostgreSQL matches and
+ranks this text with full-text search (``to_tsvector``/``ts_rank`` in the repository); SQLite
+tests fall back to a portable substring match. These helpers build the shared text/tokens.
 """
 
 from __future__ import annotations
