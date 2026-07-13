@@ -108,6 +108,25 @@ export interface Offer {
   observed_at: string;
 }
 
+/** Sync status of one scheduled account (mirrors SyncAccountOut). */
+export interface SyncAccount {
+  account_id: string;
+  supplier_code: string;
+  kind: string;
+  mode: string;
+  interval_seconds: number;
+  last_requested_at: string | null;
+  next_due_at: string | null;
+  status: string;
+}
+
+/** Outcome of a manual sync request (mirrors TriggerResultOut). */
+export interface TriggerResult {
+  account_id: string;
+  sync_job_id: string;
+  requested_at: string;
+}
+
 /** One observed price point (mirrors PricePointOut). */
 export interface PricePoint {
   offer_id: string;

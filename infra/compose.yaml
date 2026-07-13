@@ -334,14 +334,25 @@ services:
       postgres: {condition: service_healthy}
       db-init: {condition: service_completed_successfully}
 
+  sync-orchestrator:
+    image: sa-sync-orchestrator:dev
+    restart: unless-stopped
+    environment:
+      SYNC_ORCHESTRATOR_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/syncorch
+      SYNC_ORCHESTRATOR_OTLP_ENDPOINT: http://otel-collector:4317
+      SYNC_ORCHESTRATOR_ACCOUNTS: ${SYNC_ORCHESTRATOR_ACCOUNTS:-[]}
+    depends_on:
+      sync-orchestrator-migrate: {condition: service_completed_successfully}
+
   sync-orchestrator-scheduler:
     image: sa-sync-orchestrator:dev
     restart: unless-stopped
     environment:
       SYNC_ORCHESTRATOR_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/syncorch
       SYNC_ORCHESTRATOR_OTLP_ENDPOINT: http://otel-collector:4317
-      # Configure accounts to sync as JSON, e.g.:
+      # Configure accounts to sync as JSON (shared by the API + scheduler), e.g.:
       # SYNC_ORCHESTRATOR_ACCOUNTS: '[{"account_id":"01J..ACCT1","supplier_code":"brain","settlement_currency":"USD","interval_seconds":3600}]'
+      SYNC_ORCHESTRATOR_ACCOUNTS: ${SYNC_ORCHESTRATOR_ACCOUNTS:-[]}
     command: ["uv", "run", "python", "-m", "sync_orchestrator.scheduler"]
     depends_on:
       sync-orchestrator-migrate: {condition: service_completed_successfully}
@@ -412,13 +423,14 @@ services:
       API_GATEWAY_OFFER_BASE_URL: http://offer:8000
       API_GATEWAY_PRICE_HISTORY_BASE_URL: http://price-history:8000
       API_GATEWAY_MATCHING_BASE_URL: http://matching:8000
+      API_GATEWAY_SYNC_ORCHESTRATOR_BASE_URL: http://sync-orchestrator:8000
       API_GATEWAY_OTLP_ENDPOINT: http://otel-collector:4317
       # Browser origins allowed to call the gateway (curation-ui: static host + Vite dev server).
       API_GATEWAY_CORS_ALLOW_ORIGINS: '["http://localhost:8088","http://localhost:5173"]'
       # Add principals as JSON (token SHA-256 hash -> {subject, scopes}):
       # API_GATEWAY_PRINCIPALS: '{"<sha256>": {"subject": "agent:demo", "scopes": ["catalog:read"]}}'
     ports: ["8080:8000"]
-    depends_on: [catalog, offer, price-history, matching]
+    depends_on: [catalog, offer, price-history, matching, sync-orchestrator]
 
   mcp-gateway:
     build: {context: .., dockerfile: services/mcp-gateway/Dockerfile}

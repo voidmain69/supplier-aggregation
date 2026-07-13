@@ -445,3 +445,43 @@ async def create_new_canonical(
         headers={"X-Operator-Id": principal.subject},
     )
     return _relay(resp)
+
+
+# ------------------------------------------------------------------------------ sync
+@router.get(
+    "/sync/accounts",
+    operation_id="getSyncAccounts",
+    summary="List sync status per account",
+    description=(
+        "Every scheduled account and its sync health (last requested, next due, status). "
+        "Operational fields only — no credentials or financial terms. Requires scope `sync:read`."
+    ),
+    responses=_GATEWAY_ERRORS,
+)
+async def get_sync_accounts(
+    _: Annotated[Principal, Depends(require(Scopes.SYNC_READ))],
+    downstream: Annotated[Downstream, Depends(get_downstream)],
+) -> Response:
+    return _relay(await downstream.request("sync_orchestrator", "GET", "/v1/sync/accounts"))
+
+
+@router.post(
+    "/sync/accounts/{account_id}/trigger",
+    operation_id="triggerSync",
+    summary="Request a sync now",
+    description=(
+        "Manually request a sync for an account — emits sync.job.requested so its connector "
+        "fetches fresh data immediately. Requires scope `sync:read`."
+    ),
+    responses={**_GATEWAY_ERRORS, **_NOT_FOUND},
+)
+async def trigger_sync(
+    account_id: Annotated[str, Path(description="Account id (ULID) to sync now.")],
+    _: Annotated[Principal, Depends(require(Scopes.SYNC_READ))],
+    downstream: Annotated[Downstream, Depends(get_downstream)],
+) -> Response:
+    return _relay(
+        await downstream.request(
+            "sync_orchestrator", "POST", f"/v1/sync/accounts/{account_id}/trigger"
+        )
+    )

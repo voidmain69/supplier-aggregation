@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     offer_base_url: str = "http://localhost:8082"
     price_history_base_url: str = "http://localhost:8083"
     matching_base_url: str = "http://localhost:8084"
+    sync_orchestrator_base_url: str = "http://localhost:8085"
     request_timeout_seconds: float = 10.0
 
     # Auth: token SHA-256 hash -> principal. Load from env as JSON (API_GATEWAY_PRINCIPALS).

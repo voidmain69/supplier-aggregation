@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { ActionBadge } from '@/entities/decision/action-badge';
 import { useDecisions } from '@/entities/decision/use-decisions';
 import { useStats } from '@/entities/stats/use-stats';
+import { useSyncAccounts } from '@/entities/sync/use-sync-accounts';
 import { t } from '@/shared/config/i18n';
 import { timeAgo } from '@/shared/lib/format';
 import { Card } from '@/shared/ui/card';
@@ -18,7 +19,7 @@ function StatCard({
   label,
   hint,
 }: {
-  to: '/queue' | '/canonical' | '/decisions';
+  to: '/queue' | '/canonical' | '/decisions' | '/sync';
   value: number | string;
   label: string;
   hint: string;
@@ -38,7 +39,9 @@ function StatCard({
 export function DashboardPage() {
   const stats = useStats();
   const recent = useDecisions();
+  const sync = useSyncAccounts();
   const recentItems = recent.items.slice(0, 5);
+  const overdue = sync.data?.filter((a) => a.status === 'overdue').length ?? 0;
 
   return (
     <div className="mx-auto max-w-5xl p-4">
@@ -57,7 +60,7 @@ export function DashboardPage() {
         <ProblemAlert error={stats.error} onRetry={() => void stats.refetch()} />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               to="/queue"
               value={stats.data.pending_reviews}
@@ -75,6 +78,12 @@ export function DashboardPage() {
               value={stats.data.decisions_total}
               label={t.dashboard.decisions}
               hint={t.dashboard.decisionsHint}
+            />
+            <StatCard
+              to="/sync"
+              value={sync.isPending ? '…' : overdue}
+              label={t.dashboard.sync}
+              hint={overdue > 0 ? t.dashboard.syncHint : t.dashboard.syncAllOk}
             />
           </div>
 

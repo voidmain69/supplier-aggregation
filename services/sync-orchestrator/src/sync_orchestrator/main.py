@@ -6,8 +6,10 @@ here is just the operational baseline (health, telemetry) from ``sa_observabilit
 from __future__ import annotations
 
 from fastapi import FastAPI
+from sa_persistence.db import create_engine, create_session_factory
 
 from sa_observability import bootstrap
+from sync_orchestrator.api.routes import router
 from sync_orchestrator.settings import Settings
 
 
@@ -19,13 +21,16 @@ def create_app() -> FastAPI:
         description=(
             "Schedules supplier syncs. On a per-account interval it emits sync.job.requested "
             "so the owning connector fetches fresh catalog/prices — the source of the ingestion "
-            "pipeline. Not queried by agents; reads go through catalog/offer/price-history."
+            "pipeline. Also exposes sync status + a manual trigger for the operator dashboard."
         ),
     )
+    app.state.session_factory = create_session_factory(create_engine(settings.db_dsn))
+    app.state.settings = settings
     bootstrap(
         app,
         service_name="sync-orchestrator",
         env=settings.env,
         otlp_endpoint=settings.otlp_endpoint,
     )
+    app.include_router(router)
     return app

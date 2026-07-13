@@ -8,6 +8,7 @@ import { DecisionsPage } from '@/pages/decisions/decisions-page';
 import { LoginPage } from '@/pages/login/login-page';
 import { QueuePage } from '@/pages/queue/queue-page';
 import { ReviewPage } from '@/pages/review/review-page';
+import { SyncPage } from '@/pages/sync/sync-page';
 
 import { RootLayout } from './root-layout';
 
@@ -72,6 +73,13 @@ const decisionsRoute = createRoute({
   component: DecisionsPage,
 });
 
+const syncRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/sync',
+  beforeLoad: requireAuth,
+  component: SyncPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
@@ -80,6 +88,7 @@ const routeTree = rootRoute.addChildren([
   canonicalListRoute,
   canonicalDetailRoute,
   decisionsRoute,
+  syncRoute,
 ]);
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent' });

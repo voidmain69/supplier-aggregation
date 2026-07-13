@@ -11,7 +11,7 @@ function NavLink({
   to,
   children,
 }: {
-  to: '/' | '/queue' | '/canonical' | '/decisions';
+  to: '/' | '/queue' | '/canonical' | '/decisions' | '/sync';
   children: string;
 }) {
   return (
@@ -43,6 +43,7 @@ export function RootLayout() {
             <NavLink to="/queue">{t.nav.queue}</NavLink>
             <NavLink to="/canonical">{t.nav.canonical}</NavLink>
             <NavLink to="/decisions">{t.nav.decisions}</NavLink>
+            <NavLink to="/sync">{t.nav.sync}</NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <button
