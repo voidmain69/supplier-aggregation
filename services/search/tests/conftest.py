@@ -31,7 +31,8 @@ async def sqlite_session_factory() -> AsyncIterator[SessionFactory]:
 async def pg_session_factory() -> AsyncIterator[SessionFactory]:
     from testcontainers.postgres import PostgresContainer  # noqa: PLC0415
 
-    with PostgresContainer("postgres:16-alpine") as postgres:
+    # pgvector image so create_schema's `CREATE EXTENSION vector` (for the embedding column) works.
+    with PostgresContainer("pgvector/pgvector:pg16") as postgres:
         dsn = re.sub(r"^postgresql\+?\w*", "postgresql+asyncpg", postgres.get_connection_url())
         engine = create_engine(dsn)
         await create_schema(engine)

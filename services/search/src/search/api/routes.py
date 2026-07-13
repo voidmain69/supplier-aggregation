@@ -13,9 +13,11 @@ from search.adapters.repository import (
     find_by_code,
     find_by_gtin,
     search,
+    semantic_search,
 )
-from search.api.deps import get_session
-from search.api.schemas import SearchHit, SearchRequest
+from search.api.deps import get_embedder, get_session
+from search.api.schemas import SearchHit, SearchRequest, SemanticSearchRequest
+from search.domain.embedding import Embedder
 
 router = APIRouter(prefix="/v1", tags=["search"])
 
@@ -37,6 +39,27 @@ async def search_products(
 ) -> Page[SearchHit]:
     rows, next_cursor = await search(session, body.query, cursor=body.cursor, limit=body.limit)
     return Page(items=[SearchHit.from_row(r) for r in rows], next_cursor=next_cursor)
+
+
+@router.post(
+    "/search/semantic",
+    operation_id="semanticSearch",
+    summary="Semantic (natural-language) product search",
+    description=(
+        "Find products by meaning rather than keywords — describe the need in natural language "
+        "('motherboard for Ryzen 9000 with Wi-Fi 7') and get the nearest products by embedding "
+        "similarity. Each hit has a score in [0,1]. Use lexical search for keyword/code lookups."
+    ),
+    response_model=list[SearchHit],
+)
+async def search_semantic(
+    body: SemanticSearchRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    embedder: Annotated[Embedder, Depends(get_embedder)],
+) -> list[SearchHit]:
+    vector = embedder.embed(body.query)
+    hits = await semantic_search(session, vector, limit=body.limit)
+    return [SearchHit.from_row(row, score=round(score, 4)) for row, score in hits]
 
 
 @router.get(

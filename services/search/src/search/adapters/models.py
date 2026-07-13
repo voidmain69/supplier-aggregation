@@ -10,15 +10,20 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from pgvector.sqlalchemy import Vector
 from sa_persistence.db import Base
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import JSON, DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from sa_core.time import utc_now
+from search.domain.embedding import EMBEDDING_DIM
+
+# pgvector on Postgres; a portable JSON list on SQLite (unit tests) — same Python value.
+_EMBEDDING = Vector(EMBEDDING_DIM).with_variant(JSON(), "sqlite")
 
 
 class SearchDocumentRow(Base):
-    """One indexed product: identifiers for exact lookup + a searchable text blob."""
+    """One indexed product: identifiers for exact lookup + a searchable text blob + embedding."""
 
     __tablename__ = "search_document"
 
@@ -31,6 +36,7 @@ class SearchDocumentRow(Base):
     name: Mapped[str] = mapped_column(String(512))
     brand: Mapped[str | None] = mapped_column(String(256), default=None)
     search_text: Mapped[str] = mapped_column(Text)
+    embedding: Mapped[list[float] | None] = mapped_column(_EMBEDDING, default=None)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
