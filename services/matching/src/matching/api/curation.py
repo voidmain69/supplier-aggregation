@@ -18,10 +18,18 @@ from matching.adapters.repository import (
     find_canonical_by_gtin,
     get_canonical,
     get_link,
+    list_decisions,
     list_pending_links,
+    record_decision,
 )
 from matching.api.deps import get_session
-from matching.api.schemas import CreateCanonicalIn, CurationItemOut, LinkDecisionOut, Problem
+from matching.api.schemas import (
+    CreateCanonicalIn,
+    CurationItemOut,
+    DecisionOut,
+    LinkDecisionOut,
+    Problem,
+)
 from matching.events.mapping import link_confirmed_record
 from sa_core.errors import ConflictError, NotFoundError
 from sa_core.pagination import Page
@@ -114,6 +122,15 @@ async def confirm_link(
     canonical = await get_canonical(session, link.canonical_product_id)
     if canonical is not None and canonical.status == "draft":
         canonical.status = "confirmed"
+    record_decision(
+        session,
+        action="confirm",
+        operator=operator,
+        canonical_product_id=link.canonical_product_id,
+        supplier_product_id=link.supplier_product_id,
+        method="manual",
+        confidence=link.confidence,
+    )
     enqueue(
         session,
         link_confirmed_record(
@@ -165,6 +182,15 @@ async def reject_link(
         link.status = "rejected"
         link.decided_by = operator
         link.decided_at = utc_now()
+        record_decision(
+            session,
+            action="reject",
+            operator=operator,
+            canonical_product_id=link.canonical_product_id,
+            supplier_product_id=link.supplier_product_id,
+            method=link.method,
+            confidence=link.confidence,
+        )
         await session.commit()
     return LinkDecisionOut(
         supplier_product_id=link.supplier_product_id,
@@ -217,6 +243,16 @@ async def create_new_canonical(
     link.status = "confirmed"
     link.decided_by = operator
     link.decided_at = utc_now()
+    record_decision(
+        session,
+        action="create_new",
+        operator=operator,
+        canonical_product_id=canonical.canonical_product_id,
+        supplier_product_id=link.supplier_product_id,
+        method="manual",
+        confidence=1.0,
+        note=f"new canonical: {canonical.title}",
+    )
     enqueue(
         session,
         link_confirmed_record(
@@ -235,3 +271,31 @@ async def create_new_canonical(
         canonical_product_id=link.canonical_product_id,
         status=link.status,
     )
+
+
+@router.get(
+    "/decisions",
+    operation_id="listDecisions",
+    summary="List the curation decision journal",
+    description=(
+        "The append-only audit log of curation decisions (confirm / reject / create-new / merge), "
+        "newest first. Cursor paginated. Optionally filter to one supplier product's history."
+    ),
+    response_model=Page[DecisionOut],
+)
+async def list_decision_journal(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    supplier_product_id: Annotated[
+        str | None, Query(description="Filter to one supplier product's decision history.")
+    ] = None,
+    cursor: Annotated[
+        str | None, Query(description="Opaque cursor from a previous response's next_cursor.")
+    ] = None,
+    limit: Annotated[
+        int, Query(ge=1, le=200, description="Max items per page (1-200, default 50).")
+    ] = 50,
+) -> Page[DecisionOut]:
+    rows, next_cursor = await list_decisions(
+        session, supplier_product_id=supplier_product_id, cursor=cursor, limit=limit
+    )
+    return Page(items=[DecisionOut.from_row(r) for r in rows], next_cursor=next_cursor)

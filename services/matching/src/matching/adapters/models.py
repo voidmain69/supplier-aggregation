@@ -52,6 +52,26 @@ class ProductLinkRow(Base):
     decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
+class DecisionLogRow(Base):
+    """An append-only audit record of one operator (or system) curation decision.
+
+    Unlike ``ProductLinkRow`` (current state, overwritten on re-decision), this is history: every
+    confirm / reject / create-new / merge is one immutable row, ordered by its ULID id (time).
+    """
+
+    __tablename__ = "decision_log"
+
+    decision_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    action: Mapped[str] = mapped_column(String(16))  # confirm | reject | create_new | merge
+    supplier_product_id: Mapped[str | None] = mapped_column(String(26), default=None, index=True)
+    canonical_product_id: Mapped[str] = mapped_column(String(26))
+    method: Mapped[str | None] = mapped_column(String(16), default=None)
+    confidence: Mapped[float | None] = mapped_column(Float, default=None)
+    operator: Mapped[str] = mapped_column(String(64))
+    note: Mapped[str | None] = mapped_column(String(512), default=None)
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class ProcessedEvent(Base):
     """An event id the matching service has already handled (consumer dedupe)."""
 

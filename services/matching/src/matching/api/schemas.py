@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from matching.adapters.models import CanonicalProductRow
+from matching.adapters.models import CanonicalProductRow, DecisionLogRow
 
 
 class Problem(BaseModel):
@@ -93,3 +93,35 @@ class MergeResultOut(BaseModel):
     target_canonical_product_id: str = Field(description="The surviving canonical product.")
     source_canonical_product_id: str = Field(description="The merged-away canonical (now removed).")
     moved_links: int = Field(description="How many supplier-product links were repointed.")
+
+
+class DecisionOut(BaseModel):
+    """One immutable entry in the curation decision journal (audit log)."""
+
+    decision_id: str = Field(description="ULID of this decision (also the time-ordering key).")
+    action: str = Field(description="What was decided: confirm | reject | create_new | merge.")
+    supplier_product_id: str | None = Field(
+        default=None, description="The supplier product decided (null for a merge)."
+    )
+    canonical_product_id: str = Field(description="The canonical product the decision resolved to.")
+    method: str | None = Field(default=None, description="Match method, if applicable.")
+    confidence: float | None = Field(
+        default=None, description="Candidate confidence in [0,1], if applicable."
+    )
+    operator: str = Field(description="Who decided (operator id, or 'system' / 'operator').")
+    note: str | None = Field(default=None, description="Human-readable context, if any.")
+    decided_at: str = Field(description="When the decision was made (ISO-8601 UTC).")
+
+    @classmethod
+    def from_row(cls, row: DecisionLogRow) -> DecisionOut:
+        return cls(
+            decision_id=row.decision_id,
+            action=row.action,
+            supplier_product_id=row.supplier_product_id,
+            canonical_product_id=row.canonical_product_id,
+            method=row.method,
+            confidence=row.confidence,
+            operator=row.operator,
+            note=row.note,
+            decided_at=row.decided_at.isoformat(),
+        )

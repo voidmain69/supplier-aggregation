@@ -13,6 +13,7 @@ from matching.adapters.repository import (
     get_canonical,
     links_for_canonical,
     list_canonical,
+    record_decision,
 )
 from matching.api.deps import get_session
 from matching.api.schemas import (
@@ -151,6 +152,13 @@ async def merge_canonical_products(
                 ),
             )
     await delete_canonical(session, source)
+    record_decision(
+        session,
+        action="merge",
+        operator=operator,
+        canonical_product_id=canonical_product_id,
+        note=f"merged {source_id} into {canonical_product_id} ({len(links)} links)",
+    )
     await session.commit()
     return MergeResultOut(
         target_canonical_product_id=canonical_product_id,
