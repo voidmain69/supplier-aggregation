@@ -29,6 +29,15 @@
       "typical_latency_ms": 200
     },
     {
+      "name": "canonical_hybrid_search",
+      "operation_id": "canonicalHybridSearch",
+      "when_to_use": "Resolve a need to the platform's own canonical product(s) — hybrid search returning canonical product ids (then fetch offers by canonical_product_id).",
+      "when_not_to_use": "You want raw supplier products (use hybrid_search), or you have an exact identifier (use the by-* lookups).",
+      "safety": "read_only",
+      "cost_class": "expensive",
+      "typical_latency_ms": 200
+    },
+    {
       "name": "search_by_code",
       "operation_id": "searchByCode",
       "when_to_use": "Look up products by an exact supplier product code or external id.",

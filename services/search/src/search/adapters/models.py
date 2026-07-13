@@ -46,6 +46,25 @@ class SearchDocumentRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
+class CanonicalDocumentRow(Base):
+    """One indexed canonical (platform) product, built from ``catalog.product.updated`` events.
+
+    The searchable projection of the catalog's canonical card — so semantic/hybrid search can
+    return canonical product ids (the platform's own products), not just supplier products.
+    """
+
+    __tablename__ = "canonical_document"
+
+    canonical_product_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    gtin: Mapped[str | None] = mapped_column(String(14), default=None, index=True)
+    title: Mapped[str] = mapped_column(String(1024))
+    brand: Mapped[str | None] = mapped_column(String(256), default=None)
+    search_text: Mapped[str] = mapped_column(Text)
+    embedding: Mapped[list[float] | None] = mapped_column(_EMBEDDING, default=None)
+    embedding_sparse: Mapped[SparseVector | None] = mapped_column(_SPARSE, default=None)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class ProcessedEvent(Base):
     """An event id the search service has already indexed (consumer dedupe)."""
 
