@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 from decimal import Decimal
 
+from sa_persistence.outbox import enqueue
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from offer.adapters.models import OfferRow, SupplierAccountRow
 from offer.domain.pricing import DEFAULT_TERMS, FinancialTerms, effective_price_uah
+from offer.events.mapping import Cause, effective_price_changed_record
 from sa_contracts.events.supplier_offer_price_changed import SupplierOfferPriceChanged
 from sa_core.pagination import decode_cursor, encode_cursor
 from sa_core.time import ensure_utc, utc_now
@@ -17,6 +20,38 @@ from sa_core.time import ensure_utc, utc_now
 
 def _decimal(value: str | None) -> Decimal | None:
     return Decimal(value) if value is not None else None
+
+
+def _emit_effective_change(
+    session: AsyncSession,
+    *,
+    offer: OfferRow,
+    old_effective: Decimal | None,
+    new_effective: Decimal | None,
+    observed_at: datetime,
+    cause: Cause,
+) -> None:
+    """Stage an effective-price-changed event when the price actually moved to a UAH value.
+
+    A move to None (offer can no longer be priced in UAH) has no valid event representation,
+    so it is not emitted; the stored effective_price_uah still reflects it.
+    """
+    if new_effective is None or new_effective == old_effective:
+        return
+    enqueue(
+        session,
+        effective_price_changed_record(
+            offer_id=offer.offer_id,
+            supplier_account_id=offer.supplier_account_id,
+            supplier_product_id=offer.supplier_product_id,
+            old_effective=old_effective,
+            new_effective=new_effective,
+            base_price=offer.price,
+            currency=offer.currency,
+            observed_at=observed_at,
+            cause=cause,
+        ),
+    )
 
 
 def _terms_of(row: SupplierAccountRow | None) -> FinancialTerms:
@@ -47,28 +82,36 @@ async def upsert_offer(session: AsyncSession, data: SupplierOfferPriceChanged) -
         supplier_price_uah=price_uah,
     )
     row = await session.get(OfferRow, data.offer_id)
+    old_effective = row.effective_price_uah if row is not None else None
     if row is None:
-        session.add(
-            OfferRow(
-                offer_id=data.offer_id,
-                supplier_account_id=data.supplier_account_id,
-                supplier_product_id=data.supplier_product_id,
-                price=price,
-                currency=data.currency,
-                price_uah=price_uah,
-                rrp_uah=_decimal(data.rrp_uah),
-                effective_price_uah=effective,
-                observed_at=observed_at,
-            )
+        row = OfferRow(
+            offer_id=data.offer_id,
+            supplier_account_id=data.supplier_account_id,
+            supplier_product_id=data.supplier_product_id,
+            price=price,
+            currency=data.currency,
+            price_uah=price_uah,
+            rrp_uah=_decimal(data.rrp_uah),
+            effective_price_uah=effective,
+            observed_at=observed_at,
         )
-        return
-    row.price = price
-    row.currency = data.currency
-    row.price_uah = price_uah
-    row.rrp_uah = _decimal(data.rrp_uah)
-    row.effective_price_uah = effective
-    row.observed_at = observed_at
-    row.updated_at = utc_now()
+        session.add(row)
+    else:
+        row.price = price
+        row.currency = data.currency
+        row.price_uah = price_uah
+        row.rrp_uah = _decimal(data.rrp_uah)
+        row.effective_price_uah = effective
+        row.observed_at = observed_at
+        row.updated_at = utc_now()
+    _emit_effective_change(
+        session,
+        offer=row,
+        old_effective=old_effective,
+        new_effective=effective,
+        observed_at=observed_at,
+        cause="price_changed",
+    )
 
 
 async def upsert_account_terms(
@@ -96,16 +139,27 @@ async def upsert_account_terms(
 
 async def _reprice_account(session: AsyncSession, account_id: str, terms: FinancialTerms) -> int:
     """Recompute effective_price_uah for every offer of an account after a terms change."""
+    now = utc_now()
     stmt = select(OfferRow).where(OfferRow.supplier_account_id == account_id)
     rows = (await session.execute(stmt)).scalars().all()
     for row in rows:
-        row.effective_price_uah = effective_price_uah(
+        old_effective = row.effective_price_uah
+        new_effective = effective_price_uah(
             base_price=row.price,
             currency=row.currency,
             terms=terms,
             supplier_price_uah=row.price_uah,
         )
-        row.updated_at = utc_now()
+        row.effective_price_uah = new_effective
+        row.updated_at = now
+        _emit_effective_change(
+            session,
+            offer=row,
+            old_effective=old_effective,
+            new_effective=new_effective,
+            observed_at=now,
+            cause="terms_changed",
+        )
     return len(rows)
 
 

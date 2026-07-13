@@ -217,6 +217,18 @@ services:
       offer-migrate: {condition: service_completed_successfully}
       redpanda: {condition: service_healthy}
 
+  offer-relay:
+    image: sa-offer:dev
+    restart: unless-stopped
+    environment:
+      OFFER_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/offer
+      OFFER_KAFKA_BOOTSTRAP: redpanda:9092
+      OFFER_OTLP_ENDPOINT: http://otel-collector:4317
+    command: ["uv", "run", "python", "-m", "offer.relay"]
+    depends_on:
+      offer-migrate: {condition: service_completed_successfully}
+      redpanda: {condition: service_healthy}
+
   # --- matching: API + discovered consumer + link-confirmed relay ------------
   matching-migrate:
     build: {context: .., dockerfile: services/matching/Dockerfile}

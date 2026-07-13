@@ -13,12 +13,25 @@ from sa_persistence.db import create_all
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from price_history.adapters.models import PricePointRow, ProcessedEvent
+from price_history.adapters.models import (
+    EffectivePricePointRow,
+    PricePointRow,
+    ProcessedEvent,
+)
+
+_HYPERTABLES = ("price_point", "effective_price_point")
 
 
 async def create_schema(engine: AsyncEngine) -> None:
-    """Create price-history's own tables; enable the Timescale hypertable when available."""
-    await create_all(engine, tables=[PricePointRow.__table__, ProcessedEvent.__table__])
+    """Create price-history's own tables; enable the Timescale hypertables when available."""
+    await create_all(
+        engine,
+        tables=[
+            PricePointRow.__table__,
+            EffectivePricePointRow.__table__,
+            ProcessedEvent.__table__,
+        ],
+    )
     if engine.dialect.name != "postgresql":
         return
     async with engine.begin() as conn:
@@ -26,11 +39,12 @@ async def create_schema(engine: AsyncEngine) -> None:
             text("SELECT 1 FROM pg_available_extensions WHERE name = 'timescaledb'")
         )
         if available.first() is None:
-            return  # plain Postgres (e.g. tests) — keep it an ordinary table
+            return  # plain Postgres (e.g. tests) — keep them ordinary tables
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb"))
-        await conn.execute(
-            text(
-                "SELECT create_hypertable('price_point', 'ts', "
-                "if_not_exists => TRUE, migrate_data => TRUE)"
+        for table in _HYPERTABLES:
+            await conn.execute(
+                text(
+                    f"SELECT create_hypertable('{table}', 'ts', "
+                    "if_not_exists => TRUE, migrate_data => TRUE)"
+                )
             )
-        )
