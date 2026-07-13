@@ -12,14 +12,14 @@ from sa_persistence.db import create_all
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from search.adapters.models import ProcessedEvent, SearchDocumentRow
+from search.adapters.models import CanonicalDocumentRow, ProcessedEvent, SearchDocumentRow
 
 
 async def create_schema(engine: AsyncEngine) -> None:
-    """Create the search service's own tables (search_document + processed_events).
+    """Create the search service's tables (search_document, canonical_document, processed_events).
 
-    On Postgres the ``search_document.embedding`` column is a pgvector vector, so the ``vector``
-    extension is enabled first. SQLite (unit tests) stores it as JSON instead.
+    On Postgres the ``embedding`` columns are pgvector vectors, so the ``vector`` extension is
+    enabled first. SQLite (unit tests) stores them as JSON instead.
     """
     if engine.dialect.name == "postgresql":
         async with engine.begin() as conn:
@@ -29,5 +29,9 @@ async def create_schema(engine: AsyncEngine) -> None:
         await engine.dispose()
     await create_all(
         engine,
-        tables=[SearchDocumentRow.__table__, ProcessedEvent.__table__],
+        tables=[
+            SearchDocumentRow.__table__,
+            CanonicalDocumentRow.__table__,
+            ProcessedEvent.__table__,
+        ],
     )

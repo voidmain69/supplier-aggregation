@@ -8,6 +8,11 @@ from fastapi import APIRouter, Depends, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sa_core.pagination import Page
+from search.adapters.canonical_repository import (
+    canonical_lexical_candidates,
+    canonical_semantic_search,
+    canonical_sparse_candidates,
+)
 from search.adapters.repository import (
     find_by_articul,
     find_by_code,
@@ -19,6 +24,7 @@ from search.adapters.repository import (
 )
 from search.api.deps import get_embedder, get_reranker, get_session, get_sparse_embedder
 from search.api.schemas import (
+    CanonicalHit,
     HybridSearchRequest,
     SearchHit,
     SearchRequest,
@@ -121,6 +127,58 @@ async def search_hybrid(
     ranked = reranker.rerank(body.query, texts)
     return [
         SearchHit.from_row(candidates[index], score=round(score, 4))
+        for index, score in ranked[: body.limit]
+    ]
+
+
+@router.post(
+    "/search/canonical",
+    operation_id="canonicalHybridSearch",
+    summary="Hybrid search over canonical (platform) products",
+    description=(
+        "Hybrid search — lexical + semantic (+ SPLADE when configured) fused with RRF and "
+        "cross-encoder reranked — over the platform's own canonical products, returning canonical "
+        "product ids. Use this to resolve a need to a platform product (then fetch its offers); "
+        "use /search/hybrid to search raw supplier products instead."
+    ),
+    response_model=list[CanonicalHit],
+)
+async def search_canonical(
+    body: HybridSearchRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    embedder: Annotated[Embedder, Depends(get_embedder)],
+    reranker: Annotated[Reranker, Depends(get_reranker)],
+    sparse_embedder: Annotated[SparseEmbedder | None, Depends(get_sparse_embedder)],
+) -> list[CanonicalHit]:
+    vector = embedder.embed(body.query)
+    lexical = await canonical_lexical_candidates(session, body.query, limit=body.pool)
+    semantic = await canonical_semantic_search(session, vector, limit=body.pool)
+
+    rows_by_id = {row.canonical_product_id: row for row in lexical}
+    for row, _ in semantic:
+        rows_by_id.setdefault(row.canonical_product_id, row)
+
+    rankings = [
+        [row.canonical_product_id for row in lexical],
+        [row.canonical_product_id for row, _ in semantic],
+    ]
+    if sparse_embedder is not None:
+        sparse = await canonical_sparse_candidates(
+            session, sparse_embedder.embed_sparse(body.query), limit=body.pool
+        )
+        for row in sparse:
+            rows_by_id.setdefault(row.canonical_product_id, row)
+        rankings.append([row.canonical_product_id for row in sparse])
+
+    fused = reciprocal_rank_fusion(rankings)
+    candidates = [rows_by_id[cid] for cid, _ in fused[: body.pool]]
+    if not candidates:
+        return []
+
+    texts = [product_text(row.title, row.brand) for row in candidates]
+    ranked = reranker.rerank(body.query, texts)
+    return [
+        CanonicalHit.from_row(candidates[index], score=round(score, 4))
         for index, score in ranked[: body.limit]
     ]
 

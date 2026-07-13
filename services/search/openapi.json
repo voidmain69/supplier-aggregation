@@ -159,6 +159,57 @@
         ]
       }
     },
+    "/v1/search/canonical": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Hybrid search over canonical (platform) products",
+        "description": "Hybrid search — lexical + semantic (+ SPLADE when configured) fused with RRF and cross-encoder reranked — over the platform's own canonical products, returning canonical product ids. Use this to resolve a need to a platform product (then fetch its offers); use /search/hybrid to search raw supplier products instead.",
+        "operationId": "canonicalHybridSearch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HybridSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CanonicalHit"
+                  },
+                  "type": "array",
+                  "title": "Response Canonicalhybridsearch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/search/by-code/{code}": {
       "get": {
         "tags": [
@@ -324,6 +375,63 @@
   },
   "components": {
     "schemas": {
+      "CanonicalHit": {
+        "properties": {
+          "canonical_product_id": {
+            "type": "string",
+            "title": "Canonical Product Id",
+            "description": "Internal id (ULID) of the canonical product."
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Canonical product title."
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand",
+            "description": "Brand, if known."
+          },
+          "gtin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gtin",
+            "description": "Normalized GTIN-14, if the product has one."
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "Cross-encoder relevance for hybrid results (higher is better); else null."
+          }
+        },
+        "type": "object",
+        "required": [
+          "canonical_product_id",
+          "title"
+        ],
+        "title": "CanonicalHit",
+        "description": "One matching canonical (platform) product. ``score`` is set for hybrid results."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {

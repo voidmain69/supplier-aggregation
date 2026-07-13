@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from search.adapters.models import SearchDocumentRow
+from search.adapters.models import CanonicalDocumentRow, SearchDocumentRow
 
 
 class Problem(BaseModel):
@@ -89,6 +89,31 @@ class SearchHit(BaseModel):
             brand=row.brand,
             articul=row.articul,
             external_code=row.external_code,
+            gtin=row.gtin,
+            score=score,
+        )
+
+
+class CanonicalHit(BaseModel):
+    """One matching canonical (platform) product. ``score`` is set for hybrid results."""
+
+    canonical_product_id: str = Field(description="Internal id (ULID) of the canonical product.")
+    title: str = Field(description="Canonical product title.")
+    brand: str | None = Field(default=None, description="Brand, if known.")
+    gtin: str | None = Field(
+        default=None, description="Normalized GTIN-14, if the product has one."
+    )
+    score: float | None = Field(
+        default=None,
+        description="Cross-encoder relevance for hybrid results (higher is better); else null.",
+    )
+
+    @classmethod
+    def from_row(cls, row: CanonicalDocumentRow, *, score: float | None = None) -> CanonicalHit:
+        return cls(
+            canonical_product_id=row.canonical_product_id,
+            title=row.title,
+            brand=row.brand,
             gtin=row.gtin,
             score=score,
         )
