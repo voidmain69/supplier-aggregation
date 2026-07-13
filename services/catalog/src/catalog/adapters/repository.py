@@ -7,8 +7,14 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from catalog.adapters.models import ProductCanonicalLink, SupplierProductRow
+from catalog.adapters.models import (
+    CanonicalProductRow,
+    ProductCanonicalLink,
+    SupplierProductRow,
+)
+from catalog.domain.canonical import MemberProduct, build_canonical_card
 from sa_contracts.events.supplier_product_discovered import SupplierProductDiscovered
+from sa_core.gtin import normalize_gtin
 from sa_core.pagination import decode_cursor, encode_cursor
 from sa_core.time import utc_now
 
@@ -65,6 +71,59 @@ async def set_canonical_link(
         return
     row.canonical_product_id = canonical_product_id
     row.updated_at = utc_now()
+
+
+async def rebuild_canonical_card(
+    session: AsyncSession, canonical_product_id: str
+) -> tuple[CanonicalProductRow, list[str]] | None:
+    """Rebuild a canonical product's card from its current member supplier products (upsert).
+
+    Returns the row and its sorted member ids, or ``None`` if no member products are present yet
+    (e.g. a link arrived before its product was ingested) — nothing to emit in that case.
+    """
+    member_ids_stmt = select(ProductCanonicalLink.supplier_product_id).where(
+        ProductCanonicalLink.canonical_product_id == canonical_product_id
+    )
+    rows = (
+        (
+            await session.execute(
+                select(SupplierProductRow).where(
+                    SupplierProductRow.supplier_product_id.in_(member_ids_stmt)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not rows:
+        return None
+
+    card = build_canonical_card(
+        [
+            MemberProduct(
+                supplier_product_id=row.supplier_product_id,
+                name=row.name,
+                brand=row.brand,
+                gtin=normalize_gtin(row.gtin),
+                attributes=row.attributes or {},
+            )
+            for row in rows
+        ]
+    )
+    member_ids = sorted(row.supplier_product_id for row in rows)
+
+    canonical = await session.get(CanonicalProductRow, canonical_product_id)
+    if canonical is None:
+        canonical = CanonicalProductRow(canonical_product_id=canonical_product_id)
+        session.add(canonical)
+    canonical.title = card.title
+    canonical.brand = card.brand
+    canonical.gtin = card.gtin
+    canonical.attributes = card.attributes
+    canonical.supplier_product_ids = member_ids
+    canonical.status = "confirmed"
+    canonical.updated_at = utc_now()
+    return canonical, member_ids
 
 
 async def canonical_ids_for(

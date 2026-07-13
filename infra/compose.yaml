@@ -184,6 +184,18 @@ services:
       catalog-migrate: {condition: service_completed_successfully}
       redpanda: {condition: service_healthy}
 
+  catalog-relay:
+    image: sa-catalog:dev
+    restart: unless-stopped
+    environment:
+      CATALOG_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/catalog
+      CATALOG_KAFKA_BOOTSTRAP: redpanda:9092
+      CATALOG_OTLP_ENDPOINT: http://otel-collector:4317
+    command: ["uv", "run", "python", "-m", "catalog.relay"]
+    depends_on:
+      catalog-migrate: {condition: service_completed_successfully}
+      redpanda: {condition: service_healthy}
+
   # --- offer: API + price-changed consumer -----------------------------------
   offer-migrate:
     build: {context: .., dockerfile: services/offer/Dockerfile}
