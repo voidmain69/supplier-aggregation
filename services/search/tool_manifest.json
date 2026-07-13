@@ -20,6 +20,15 @@
       "typical_latency_ms": 120
     },
     {
+      "name": "hybrid_search",
+      "operation_id": "hybridSearch",
+      "when_to_use": "Best-quality single ranked list: combine keyword and meaning, then cross-encoder rerank. Use when you want the top results and don't need pagination.",
+      "when_not_to_use": "You have an exact code/articul/GTIN (use the by-* lookups), or you need to page through many results (use search_products).",
+      "safety": "read_only",
+      "cost_class": "expensive",
+      "typical_latency_ms": 200
+    },
+    {
       "name": "search_by_code",
       "operation_id": "searchByCode",
       "when_to_use": "Look up products by an exact supplier product code or external id.",

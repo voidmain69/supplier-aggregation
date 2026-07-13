@@ -29,7 +29,7 @@
 | Фундамент | Монорепо (uv workspace), CI (ruff/mypy/import-linter/conventions/event-schemas/spectral/`compose config`), libs `core · contracts · connector-sdk · observability · persistence · messaging`, `scaffold`, стандарти + ADR-0001…0010 |
 | Надійність | Transactional outbox + relay у продюсерів, ідемпотентні консюмери, **DLQ + обмежені ретраї + `tools/replay_dlq.py`** ([ADR-0006](docs/adr/0006-dead-letter-queue.md)), **Vault**-резолвер кредів + **S3/MinIO** raw-архів, **Alembic-міграції** (expand-migrate-contract), наскрізний **E2E-тест** |
 | Ingestion | `sync-orchestrator` (розклад per-account, режим full/delta → `sync.job.requested`); `connector-brain` (сесії/SID, rate-limit 3 rps, нормалізація, S3 raw-archive; **повний і дельта-синк** через `modified_products` + watermark, [ADR-0008](docs/adr/0008-delta-sync-watermark.md); outbox relay) |
-| Core | `catalog` (SupplierProduct + canonical link); `offer` (мультиакаунтні офери + **Pricing Engine / `effective_price`** + подія `offer.effective-price.changed`, [ADR-0007](docs/adr/0007-pricing-engine.md)); `price-history` (Timescale time-series + stats + **денний rollup / continuous aggregate + compression**, [ADR-0010](docs/adr/0010-portable-query-native-scale.md)); `matching` (GTIN auto-link + pgvector RAG + черга курації); **`search`** (лексичний + семантичний, [ADR-0009](docs/adr/0009-search-service.md)) |
+| Core | `catalog` (SupplierProduct + canonical link); `offer` (мультиакаунтні офери + **Pricing Engine / `effective_price`** + подія `offer.effective-price.changed`, [ADR-0007](docs/adr/0007-pricing-engine.md)); `price-history` (Timescale time-series + stats + **денний rollup / continuous aggregate + compression**, [ADR-0010](docs/adr/0010-portable-query-native-scale.md)); `matching` (GTIN auto-link + pgvector RAG + черга курації); **`search`** (лексичний + семантичний + **гібридний RRF + cross-encoder rerank**, [ADR-0009](docs/adr/0009-search-service.md) · [ADR-0011](docs/adr/0011-hybrid-search-rerank.md)) |
 | Edge | `api-gateway` (bearer + скоупи + rate-limit + агрегований OpenAPI + CORS), `mcp-gateway` (MCP-інструменти: пошук/офери/best/product+offer/canonical/price-history/stats) |
 | Backoffice | **`curation-ui`** (React 19 + TS, `apps/curation-ui`): черга курації, робоче місце ревʼю (diff атрибутів, офери, історія цін), рішення **confirm / reject / create-new / merge**, канонічний каталог; ходить через api-gateway (bearer + скоупи `matching:curate`) |
 | Інфра | `make up` = Postgres(+Timescale+pgvector) · Redpanda · Redis · MinIO · OTel/Grafana **+ усі сервіси + curation-ui** (API/консюмери/relay, БД-на-сервіс, міграції на старті) |
@@ -44,8 +44,9 @@
   та інструмент бекфілу (переembedding наявних рядків після зміни ширини вектора 256→1024 — наразі через
   реплей `supplier.product.discovered`).
 - **Другий конектор** — валідація абстракцій connector-sdk на новому постачальнику.
-- **Розширення пошуку**: індексація **канонічних** товарів з `catalog.product.updated`, гібридне
-  **RRF**-злиття лексики + семантики, PostgreSQL FTS (`tsvector`)-ранжування.
+- **Розширення пошуку**: індексація **канонічних** товарів з `catalog.product.updated`, третій
+  (splade-sparse) ретрівер у тому ж RRF, PostgreSQL FTS (`tsvector`)-ранжування. Гібридний
+  **RRF + cross-encoder rerank** уже доставлено ([ADR-0011](docs/adr/0011-hybrid-search-rerank.md)).
 - **Пошук/price-history через gateway**: виставити `search` і денний rollup через api-gateway та mcp-gateway.
 
 ---

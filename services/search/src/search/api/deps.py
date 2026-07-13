@@ -9,6 +9,7 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from search.domain.embedding import Embedder
+from search.domain.rerank import Reranker
 
 
 def get_session_factory(request: Request) -> async_sessionmaker[AsyncSession]:
@@ -19,6 +20,11 @@ def get_session_factory(request: Request) -> async_sessionmaker[AsyncSession]:
 def get_embedder(request: Request) -> Embedder:
     embedder: Embedder = request.app.state.embedder
     return embedder
+
+
+def get_reranker(request: Request) -> Reranker:
+    reranker: Reranker = request.app.state.reranker
+    return reranker
 
 
 async def get_session(

@@ -12,12 +12,20 @@ from search.adapters.repository import (
     find_by_articul,
     find_by_code,
     find_by_gtin,
+    lexical_candidates,
     search,
     semantic_search,
 )
-from search.api.deps import get_embedder, get_session
-from search.api.schemas import SearchHit, SearchRequest, SemanticSearchRequest
-from search.domain.embedding import Embedder
+from search.api.deps import get_embedder, get_reranker, get_session
+from search.api.schemas import (
+    HybridSearchRequest,
+    SearchHit,
+    SearchRequest,
+    SemanticSearchRequest,
+)
+from search.domain.embedding import Embedder, product_text
+from search.domain.fusion import reciprocal_rank_fusion
+from search.domain.rerank import Reranker
 
 router = APIRouter(prefix="/v1", tags=["search"])
 
@@ -60,6 +68,51 @@ async def search_semantic(
     vector = embedder.embed(body.query)
     hits = await semantic_search(session, vector, limit=body.limit)
     return [SearchHit.from_row(row, score=round(score, 4)) for row, score in hits]
+
+
+@router.post(
+    "/search/hybrid",
+    operation_id="hybridSearch",
+    summary="Hybrid product search (lexical + semantic, reranked)",
+    description=(
+        "Best-quality search: retrieves candidates both lexically (exact tokens) and semantically "
+        "(embedding meaning), fuses them with Reciprocal Rank Fusion, then reorders with a "
+        "cross-encoder reranker. Use this when you want the single best-ranked list and don't need "
+        "pagination; each hit carries a relevance score. Prefer the by-code/articul/gtin lookups "
+        "for exact identifiers."
+    ),
+    response_model=list[SearchHit],
+)
+async def search_hybrid(
+    body: HybridSearchRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    embedder: Annotated[Embedder, Depends(get_embedder)],
+    reranker: Annotated[Reranker, Depends(get_reranker)],
+) -> list[SearchHit]:
+    vector = embedder.embed(body.query)
+    lexical = await lexical_candidates(session, body.query, limit=body.pool)
+    semantic = await semantic_search(session, vector, limit=body.pool)
+
+    rows_by_id = {row.supplier_product_id: row for row in lexical}
+    for row, _ in semantic:
+        rows_by_id.setdefault(row.supplier_product_id, row)
+
+    fused = reciprocal_rank_fusion(
+        [
+            [row.supplier_product_id for row in lexical],
+            [row.supplier_product_id for row, _ in semantic],
+        ]
+    )
+    candidates = [rows_by_id[cid] for cid, _ in fused[: body.pool]]
+    if not candidates:
+        return []
+
+    texts = [product_text(row.name, row.brand) for row in candidates]
+    ranked = reranker.rerank(body.query, texts)
+    return [
+        SearchHit.from_row(candidates[index], score=round(score, 4))
+        for index, score in ranked[: body.limit]
+    ]
 
 
 @router.get(

@@ -367,6 +367,9 @@ services:
       # TEI (BAAI/bge-m3) URL for real embeddings; unset => offline HashingEmbedder.
       # e.g. EMBEDDER_URL=http://192.168.0.192:8081 (GPU node) before `make up`.
       SEARCH_EMBEDDER_URL: ${EMBEDDER_URL:-}
+      # TEI cross-encoder (bge-reranker) URL for hybrid rerank; unset => NoopReranker.
+      # e.g. RERANKER_URL=http://192.168.0.192:8083 (GPU node) before `make up`.
+      SEARCH_RERANKER_URL: ${RERANKER_URL:-}
     depends_on:
       search-migrate: {condition: service_completed_successfully}
 
