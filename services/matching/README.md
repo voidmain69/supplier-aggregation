@@ -19,9 +19,13 @@ Two processes (separate deployments):
 |---|---|---|
 | GET | `/v1/canonical-products?gtin=` | List canonical products (cursor pagination, GTIN filter) |
 | GET | `/v1/canonical-products/{id}` | Fetch one; 404 as RFC 9457 problem+json |
+| POST | `/v1/canonical-products/{id}/merge` | Merge one canonical into another (re-links its members) |
 | GET | `/v1/curation/queue` | Matches awaiting an operator decision (pending_review) |
+| GET | `/v1/curation/stats` | Operator dashboard: pending reviews, canonical count, decisions by action |
+| GET | `/v1/curation/decisions` | Append-only decision journal (audit log), cursor-paginated |
 | POST | `/v1/curation/links/{spid}/confirm` | Confirm a suggested match (emits link.confirmed) |
 | POST | `/v1/curation/links/{spid}/reject` | Reject a suggested match |
+| POST | `/v1/curation/links/{spid}/create-new` | Create a new canonical for a product no existing one fits |
 
 ## Events
 
@@ -43,5 +47,7 @@ testcontainers (`@pytest.mark.integration`).
 
 ## Follow-ups
 
-RAG candidate generation + operator curation queue; GTIN collision handling; attach
-canonical_product_id back onto catalog products; Alembic migrations.
+Swap the candidate scorer from lexical similarity to a real semantic pgvector/RAG model (the
+`Embedder` seam is in place); GTIN-collision queue handling; tune thresholds/models on the decision
+journal; hand canonical-card *reads* over to catalog via the gateway
+([ADR-0012](../../docs/adr/0012-catalog-owns-canonical.md)).

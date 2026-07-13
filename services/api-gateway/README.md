@@ -15,10 +15,11 @@ is ever in config. In production the principal store is backed by Vault/DB.
 
 | Scope | Grants |
 |---|---|
-| `catalog:read` | list/get supplier products |
+| `catalog:read` | list/get supplier products + canonical products |
 | `offers:read` | list offers / best offer |
 | `prices:read` | price history + stats |
-| `matching:curate` | curation queue + confirm/reject |
+| `matching:curate` | curation queue/stats/decisions + confirm/reject/create-new/merge |
+| `sync:read` | sync-account state + manual trigger |
 | `accounts:financial:read` | (reserved) account financial terms |
 
 ## Endpoints (all under `/v1`, all scoped + rate-limited)
@@ -26,10 +27,14 @@ is ever in config. In production the principal store is backed by Vault/DB.
 | Method | Path | Scope | Forwards to |
 |---|---|---|---|
 | GET | `/products` · `/products/{id}` | `catalog:read` | catalog |
+| GET | `/canonical-products` · `/canonical-products/{id}` | `catalog:read` | matching |
 | GET | `/products/{id}/offers` · `/products/{id}/best-offer` | `offers:read` | offer |
 | GET | `/offers/{id}/price-history` · `.../stats` | `prices:read` | price-history |
-| GET | `/curation/queue` | `matching:curate` | matching |
-| POST | `/curation/links/{id}/confirm` · `.../reject` | `matching:curate` | matching |
+| GET | `/curation/queue` · `/curation/stats` · `/curation/decisions` | `matching:curate` | matching |
+| POST | `/curation/links/{id}/confirm` · `.../reject` · `.../create-new` | `matching:curate` | matching |
+| POST | `/canonical-products/{id}/merge` | `matching:curate` | matching |
+| GET | `/sync/accounts` | `sync:read` | sync-orchestrator |
+| POST | `/sync/accounts/{id}/trigger` | `sync:read` | sync-orchestrator |
 
 Downstream problem+json errors are relayed unchanged; a downstream outage becomes `502`.
 

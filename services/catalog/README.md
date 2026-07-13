@@ -1,13 +1,17 @@
 # catalog
 
-Owns the platform's view of **supplier products**: ingests them from connector events and
-serves them via an AI-ready read API. The canonical catalog + matching build on this later.
+Owns the platform's view of **supplier products** and the **canonical product card**. Ingests
+supplier products from connector events, and — on matching's decisions — rebuilds the canonical
+card and publishes it as the single source of truth for downstream services
+([ADR-0012](../../docs/adr/0012-catalog-owns-canonical.md)).
 
 Two processes (separate deployments):
 - **API** (`catalog.main:create_app`) — read endpoints under `/v1`.
-- **Consumer** (`python -m catalog.consumer`) — subscribes to `sa.supplier.product`
-  (upsert products) and `sa.matching.link` (record each product's canonical mapping),
-  both idempotent.
+- **Consumer** (`python -m catalog.consumer`) — subscribes to `sa.supplier.product` (upsert
+  products) and `sa.matching.link` (`matching.link.confirmed` → link the supplier product to its
+  canonical, deterministically **rebuild the card** via `build_canonical_card`, and emit
+  `catalog.product.updated`; on merge/split the previous canonical is rebuilt too). Idempotent.
+- **Relay** (`python -m catalog.relay`) — ships the outbox to Kafka.
 
 ## API
 
@@ -24,6 +28,7 @@ Errors are `application/problem+json`; every field/param carries an LLM-quality 
 |---|---|---|
 | in | `supplier.product.discovered` | `sa.supplier.product` |
 | in | `matching.link.confirmed` | `sa.matching.link` |
+| out | `catalog.product.updated` | `sa.catalog.product` |
 
 ## Configuration
 
@@ -38,5 +43,6 @@ testcontainers (`@pytest.mark.integration`).
 
 ## Follow-ups
 
-Export `openapi.json` + spectral AI-ready lint + populate `tool_manifest.json`; canonical
-products and matching; Alembic migrations.
+Serve canonical **card reads** from here (`GET /v1/canonical-products`), taking over from matching
+via the gateway (see [ADR-0012](../../docs/adr/0012-catalog-owns-canonical.md)); category taxonomy +
+supplier→canonical category mapping (a separate greenfield epic).
