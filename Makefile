@@ -1,6 +1,6 @@
 # Single entry point for the dev loop. Works in Git Bash / WSL / Linux / macOS.
 
-.PHONY: up down lint test test-integration check contracts openapi clients scaffold migrate ci \
+.PHONY: up down lint test test-integration check contracts openapi clients scaffold migrate reembed ci \
 	ui-install ui-dev ui-lint ui-test ui-build
 
 UI_DIR = apps/curation-ui
@@ -43,6 +43,9 @@ scaffold:
 
 migrate:   # apply a service's migrations, e.g. `make migrate svc=catalog`
 	uv run alembic -c services/$(svc)/alembic.ini upgrade head
+
+reembed:   # re-embed a service's rows in place, e.g. `make reembed svc=search` (svc: search|matching)
+	uv run python -m $(svc).reembed
 
 ci: lint test check
 
