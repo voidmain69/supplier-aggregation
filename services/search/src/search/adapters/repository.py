@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from pgvector import SparseVector
 from sqlalchemy import ColumnElement, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +14,7 @@ from sa_core.pagination import decode_cursor, encode_cursor
 from search.adapters.models import SearchDocumentRow
 from search.domain.embedding import cosine
 from search.domain.query import document_text, tokenize
+from search.domain.sparse import SPARSE_DIM
 
 # PostgreSQL full-text config. "simple" (no stemming/stop-words) is language-agnostic — right for a
 # multilingual product catalog where stemming would mangle brands/models across languages.
@@ -43,10 +45,12 @@ async def index_document(
     data: SupplierProductDiscovered,
     *,
     embedding: list[float] | None = None,
+    sparse: dict[int, float] | None = None,
 ) -> None:
     """Insert or update the search document for a discovered supplier product (idempotent)."""
     gtin = normalize_gtin(data.gtin)
     text = document_text(data.name, data.brand, data.articul, data.external_code, data.external_id)
+    sparse_vec = SparseVector(sparse, SPARSE_DIM) if sparse else None
     row = await session.get(SearchDocumentRow, data.supplier_product_id)
     if row is None:
         session.add(
@@ -61,6 +65,7 @@ async def index_document(
                 brand=data.brand,
                 search_text=text,
                 embedding=embedding,
+                embedding_sparse=sparse_vec,
             )
         )
         return
@@ -73,6 +78,7 @@ async def index_document(
     row.brand = data.brand
     row.search_text = text
     row.embedding = embedding
+    row.embedding_sparse = sparse_vec
 
 
 async def semantic_search(
@@ -158,6 +164,27 @@ async def lexical_candidates(
         stmt = stmt.order_by(rank.desc(), SearchDocumentRow.supplier_product_id)
     else:
         stmt = stmt.order_by(SearchDocumentRow.supplier_product_id)
+    return list((await session.execute(stmt)).scalars().all())
+
+
+async def sparse_candidates(
+    session: AsyncSession, sparse_query: dict[int, float], *, limit: int = 50
+) -> list[SearchDocumentRow]:
+    """SPLADE candidate pool by max inner product (PostgreSQL only; other dialects -> []).
+
+    Sparse retrieval is a Postgres/pgvector feature; on SQLite (unit tests) or an empty query it
+    returns nothing, so the hybrid route simply fuses without it. Ordered most-relevant first.
+    """
+    if not sparse_query or not _is_postgres(session):
+        return []
+    query_vec = SparseVector(sparse_query, SPARSE_DIM)
+    distance = SearchDocumentRow.embedding_sparse.max_inner_product(query_vec)
+    stmt = (
+        select(SearchDocumentRow)
+        .where(SearchDocumentRow.embedding_sparse.is_not(None))
+        .order_by(distance)
+        .limit(limit)
+    )
     return list((await session.execute(stmt)).scalars().all())
 
 

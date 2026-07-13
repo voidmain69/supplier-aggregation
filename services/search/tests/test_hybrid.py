@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 import pytest
-from search.api.deps import get_reranker, get_session_factory
+from search.api.deps import get_reranker, get_session_factory, get_sparse_embedder
 from search.events.handlers import build_discovered_handler
 from search.main import create_app
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -34,7 +34,15 @@ class _KeywordReranker:
         return scored
 
 
+class _FakeSparseEmbedder:
+    """Stub sparse embedder; on SQLite sparse_candidates returns [], so it just proves wiring."""
+
+    def embed_sparse(self, text: str) -> dict[int, float]:
+        return {1: 1.0}
+
+
 _KEYWORD_RERANKER = _KeywordReranker()
+_FAKE_SPARSE_EMBEDDER = _FakeSparseEmbedder()
 
 
 @pytest.fixture
@@ -96,3 +104,29 @@ async def test_hybrid__empty_query_rejected_422(client: httpx.AsyncClient) -> No
     async with client:
         resp = await client.post("/v1/search/hybrid", json={"query": ""})
     assert resp.status_code == 422
+
+
+async def test_hybrid__configured_sparse_embedder_skipped_gracefully_on_sqlite(
+    sqlite_session_factory: SessionFactory,
+    discovered_event: Callable[..., dict[str, Any]],
+) -> None:
+    # With a sparse embedder wired, the route embeds the query but sparse_candidates returns []
+    # on SQLite — results stay lexical+dense and nothing errors.
+    app = create_app()
+    app.dependency_overrides[get_session_factory] = lambda: sqlite_session_factory
+    app.dependency_overrides[get_reranker] = lambda: _KEYWORD_RERANKER
+    app.dependency_overrides[get_sparse_embedder] = lambda: _FAKE_SPARSE_EMBEDDER
+    client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
+
+    await _seed(
+        sqlite_session_factory,
+        [
+            discovered_event(supplier_product_id=_MOUSE, name="wireless mouse", gtin=None),
+            discovered_event(supplier_product_id=_BOARD, name="ASUS motherboard", gtin=None),
+        ],
+    )
+    async with client:
+        resp = await client.post("/v1/search/hybrid", json={"query": "mouse wireless"})
+
+    assert resp.status_code == 200
+    assert {hit["supplier_product_id"] for hit in resp.json()} == {_MOUSE, _BOARD}

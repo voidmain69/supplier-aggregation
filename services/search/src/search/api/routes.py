@@ -15,8 +15,9 @@ from search.adapters.repository import (
     lexical_candidates,
     search,
     semantic_search,
+    sparse_candidates,
 )
-from search.api.deps import get_embedder, get_reranker, get_session
+from search.api.deps import get_embedder, get_reranker, get_session, get_sparse_embedder
 from search.api.schemas import (
     HybridSearchRequest,
     SearchHit,
@@ -26,6 +27,7 @@ from search.api.schemas import (
 from search.domain.embedding import Embedder, product_text
 from search.domain.fusion import reciprocal_rank_fusion
 from search.domain.rerank import Reranker
+from search.domain.sparse import SparseEmbedder
 
 router = APIRouter(prefix="/v1", tags=["search"])
 
@@ -75,11 +77,11 @@ async def search_semantic(
     operation_id="hybridSearch",
     summary="Hybrid product search (lexical + semantic, reranked)",
     description=(
-        "Best-quality search: retrieves candidates both lexically (exact tokens) and semantically "
-        "(embedding meaning), fuses them with Reciprocal Rank Fusion, then reorders with a "
-        "cross-encoder reranker. Use this when you want the single best-ranked list and don't need "
-        "pagination; each hit carries a relevance score. Prefer the by-code/articul/gtin lookups "
-        "for exact identifiers."
+        "Best-quality search: retrieves candidates lexically (exact tokens), semantically "
+        "(embedding meaning) and — when a SPLADE model is configured — by learned-sparse terms, "
+        "fuses them with Reciprocal Rank Fusion, then reorders with a cross-encoder reranker. Use "
+        "this when you want the single best-ranked list and don't need pagination; each hit has a "
+        "relevance score. Prefer the by-code/articul/gtin lookups for exact identifiers."
     ),
     response_model=list[SearchHit],
 )
@@ -88,6 +90,7 @@ async def search_hybrid(
     session: Annotated[AsyncSession, Depends(get_session)],
     embedder: Annotated[Embedder, Depends(get_embedder)],
     reranker: Annotated[Reranker, Depends(get_reranker)],
+    sparse_embedder: Annotated[SparseEmbedder | None, Depends(get_sparse_embedder)],
 ) -> list[SearchHit]:
     vector = embedder.embed(body.query)
     lexical = await lexical_candidates(session, body.query, limit=body.pool)
@@ -97,12 +100,19 @@ async def search_hybrid(
     for row, _ in semantic:
         rows_by_id.setdefault(row.supplier_product_id, row)
 
-    fused = reciprocal_rank_fusion(
-        [
-            [row.supplier_product_id for row in lexical],
-            [row.supplier_product_id for row, _ in semantic],
-        ]
-    )
+    rankings = [
+        [row.supplier_product_id for row in lexical],
+        [row.supplier_product_id for row, _ in semantic],
+    ]
+    if sparse_embedder is not None:
+        sparse = await sparse_candidates(
+            session, sparse_embedder.embed_sparse(body.query), limit=body.pool
+        )
+        for row in sparse:
+            rows_by_id.setdefault(row.supplier_product_id, row)
+        rankings.append([row.supplier_product_id for row in sparse])
+
+    fused = reciprocal_rank_fusion(rankings)
     candidates = [rows_by_id[cid] for cid, _ in fused[: body.pool]]
     if not candidates:
         return []

@@ -44,10 +44,9 @@
   та інструмент бекфілу (переembedding наявних рядків після зміни ширини вектора 256→1024 — наразі через
   реплей `supplier.product.discovered`).
 - **Другий конектор** — валідація абстракцій connector-sdk на новому постачальнику.
-- **Розширення пошуку**: індексація **канонічних** товарів з `catalog.product.updated`, третій
-  (splade-sparse) ретрівер у тому ж RRF. Гібридний **RRF + cross-encoder rerank**
-  ([ADR-0011](docs/adr/0011-hybrid-search-rerank.md)) та **PostgreSQL FTS (`tsvector`)-ранжування**
-  лексики вже доставлено.
+- **Розширення пошуку**: індексація **канонічних** товарів з `catalog.product.updated`. Гібридний
+  **RRF + cross-encoder rerank + splade-sparse** (3 ретрівери, [ADR-0011](docs/adr/0011-hybrid-search-rerank.md))
+  та **PostgreSQL FTS (`tsvector`)-ранжування** лексики вже доставлено.
 - **Пошук/price-history через gateway**: виставити `search` і денний rollup через api-gateway та mcp-gateway.
 
 ---

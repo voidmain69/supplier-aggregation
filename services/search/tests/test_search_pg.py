@@ -13,6 +13,7 @@ from search.adapters.repository import (
     lexical_candidates,
     search,
     semantic_search,
+    sparse_candidates,
 )
 from search.domain.embedding import HashingEmbedder, product_text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -89,6 +90,34 @@ async def test_lexical_candidates__ranks_by_fts_relevance(
         "01J00000000000000000000002",  # "wireless" twice -> higher ts_rank
         "01J00000000000000000000001",
     ]
+
+
+async def test_sparse_candidates__ranks_by_inner_product_on_postgres(
+    pg_session_factory: SessionFactory,
+) -> None:
+    async with pg_session_factory() as session, session.begin():
+        await index_document(
+            session, _doc("01J00000000000000000000001", name="a"), sparse={10: 0.2, 20: 0.9}
+        )
+        await index_document(
+            session, _doc("01J00000000000000000000002", name="b"), sparse={10: 0.9, 30: 0.1}
+        )
+
+    async with pg_session_factory() as session:
+        # Query weights token 20 (only doc-1 carries it) heavily -> doc-1 outranks doc-2.
+        hits = await sparse_candidates(session, {20: 1.0, 10: 0.1})
+
+    assert [h.supplier_product_id for h in hits] == [
+        "01J00000000000000000000001",
+        "01J00000000000000000000002",
+    ]
+
+
+async def test_sparse_candidates__empty_query_returns_nothing(
+    pg_session_factory: SessionFactory,
+) -> None:
+    async with pg_session_factory() as session:
+        assert await sparse_candidates(session, {}) == []
 
 
 async def test_semantic_search__pgvector_nearest_on_postgres(

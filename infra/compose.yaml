@@ -370,6 +370,9 @@ services:
       # TEI cross-encoder (bge-reranker) URL for hybrid rerank; unset => NoopReranker.
       # e.g. RERANKER_URL=http://192.168.0.192:8083 (GPU node) before `make up`.
       SEARCH_RERANKER_URL: ${RERANKER_URL:-}
+      # TEI SPLADE (sparse) URL for the 3rd hybrid retriever; unset => sparse disabled.
+      # e.g. SPARSE_EMBEDDER_URL=http://192.168.0.192:8082 (GPU node) before `make up`.
+      SEARCH_SPARSE_EMBEDDER_URL: ${SPARSE_EMBEDDER_URL:-}
     depends_on:
       search-migrate: {condition: service_completed_successfully}
 
@@ -381,6 +384,7 @@ services:
       SEARCH_KAFKA_BOOTSTRAP: redpanda:9092
       SEARCH_OTLP_ENDPOINT: http://otel-collector:4317
       SEARCH_EMBEDDER_URL: ${EMBEDDER_URL:-}
+      SEARCH_SPARSE_EMBEDDER_URL: ${SPARSE_EMBEDDER_URL:-}
     command: ["uv", "run", "python", "-m", "search.consumer"]
     depends_on:
       search-migrate: {condition: service_completed_successfully}
