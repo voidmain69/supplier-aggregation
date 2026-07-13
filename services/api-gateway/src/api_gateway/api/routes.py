@@ -215,6 +215,59 @@ async def get_offer_price_stats(
     return _relay(resp)
 
 
+# ----------------------------------------------------------------- canonical products
+@router.get(
+    "/canonical-products",
+    operation_id="listCanonicalProducts",
+    summary="List canonical products",
+    description=(
+        "List canonical (platform) products, optionally filtered by normalized GTIN-14. "
+        "Cursor-paginated. Use it to resolve the canonical product a match suggestion points "
+        "at, or to browse the confirmed catalog. Requires scope `catalog:read`."
+    ),
+    responses=_GATEWAY_ERRORS,
+)
+async def list_canonical_products(
+    _: Annotated[Principal, Depends(require(Scopes.CATALOG_READ))],
+    downstream: Annotated[Downstream, Depends(get_downstream)],
+    gtin: Annotated[
+        str | None, Query(description="Filter by normalized GTIN-14 (14 digits).")
+    ] = None,
+    cursor: Annotated[
+        str | None, Query(description="Opaque cursor from a previous response's next_cursor.")
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=200, description="Max items per page (1-200).")] = 50,
+) -> Response:
+    resp = await downstream.request(
+        "matching",
+        "GET",
+        "/v1/canonical-products",
+        params={"gtin": gtin, "cursor": cursor, "limit": limit},
+    )
+    return _relay(resp)
+
+
+@router.get(
+    "/canonical-products/{canonical_product_id}",
+    operation_id="getCanonicalProduct",
+    summary="Get one canonical product",
+    description=(
+        "Fetch a single canonical product by its internal canonical_product_id (ULID). Use it "
+        "to render the candidate side of a match review. Requires scope `catalog:read`."
+    ),
+    responses={**_GATEWAY_ERRORS, **_NOT_FOUND},
+)
+async def get_canonical_product(
+    canonical_product_id: Annotated[str, Path(description="Canonical product id (ULID).")],
+    _: Annotated[Principal, Depends(require(Scopes.CATALOG_READ))],
+    downstream: Annotated[Downstream, Depends(get_downstream)],
+) -> Response:
+    resp = await downstream.request(
+        "matching", "GET", f"/v1/canonical-products/{canonical_product_id}"
+    )
+    return _relay(resp)
+
+
 # --------------------------------------------------------------------------- curation
 @router.get(
     "/curation/queue",
@@ -252,11 +305,14 @@ async def get_curation_queue(
 )
 async def confirm_curation_link(
     supplier_product_id: Annotated[str, Path(description="Supplier product id (ULID) to confirm.")],
-    _: Annotated[Principal, Depends(require(Scopes.MATCHING_CURATE))],
+    principal: Annotated[Principal, Depends(require(Scopes.MATCHING_CURATE))],
     downstream: Annotated[Downstream, Depends(get_downstream)],
 ) -> Response:
     resp = await downstream.request(
-        "matching", "POST", f"/v1/curation/links/{supplier_product_id}/confirm"
+        "matching",
+        "POST",
+        f"/v1/curation/links/{supplier_product_id}/confirm",
+        headers={"X-Operator-Id": principal.subject},
     )
     return _relay(resp)
 
@@ -273,10 +329,13 @@ async def confirm_curation_link(
 )
 async def reject_curation_link(
     supplier_product_id: Annotated[str, Path(description="Supplier product id (ULID) to reject.")],
-    _: Annotated[Principal, Depends(require(Scopes.MATCHING_CURATE))],
+    principal: Annotated[Principal, Depends(require(Scopes.MATCHING_CURATE))],
     downstream: Annotated[Downstream, Depends(get_downstream)],
 ) -> Response:
     resp = await downstream.request(
-        "matching", "POST", f"/v1/curation/links/{supplier_product_id}/reject"
+        "matching",
+        "POST",
+        f"/v1/curation/links/{supplier_product_id}/reject",
+        headers={"X-Operator-Id": principal.subject},
     )
     return _relay(resp)

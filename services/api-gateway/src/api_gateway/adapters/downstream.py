@@ -34,11 +34,14 @@ class Downstream:
         *,
         params: Mapping[str, Any] | None = None,
         json: Any | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> httpx.Response:
         base = self._base_urls[service]
         clean = {k: v for k, v in (params or {}).items() if v is not None}
         try:
-            return await self._http.request(method, f"{base}{path}", params=clean, json=json)
+            return await self._http.request(
+                method, f"{base}{path}", params=clean, json=json, headers=headers
+            )
         except httpx.HTTPError as exc:
             raise UpstreamError(
                 f"The {service} service is unreachable; retry shortly. ({exc})",

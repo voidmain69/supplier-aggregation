@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api_gateway.adapters.downstream import Downstream
 from api_gateway.api.routes import router
@@ -60,6 +61,16 @@ def create_app() -> FastAPI:
     bootstrap(
         app, service_name="api-gateway", env=settings.env, otlp_endpoint=settings.otlp_endpoint
     )
+    # A browser SPA (curation-ui) lives on another origin; allow only the configured ones.
+    # No wildcard: the gateway is bearer-credentialed. Methods/headers match what the UI sends.
+    if settings.cors_allow_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_allow_origins,
+            allow_methods=["GET", "POST"],
+            allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "traceparent"],
+            max_age=600,
+        )
     app.state.settings = settings
     app.state.principals = _principal_store(settings)
     app.state.rate_limiter = RateLimiter(
