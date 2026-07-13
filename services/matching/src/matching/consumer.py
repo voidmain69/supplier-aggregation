@@ -11,6 +11,7 @@ import asyncio
 from sa_messaging import KafkaEventConsumer, KafkaPublisher
 from sa_persistence.db import create_engine, create_session_factory
 
+from matching.adapters.embedder import build_embedder
 from matching.events.handlers import build_discovered_handler
 from matching.settings import Settings
 from sa_contracts import EVENT_REGISTRY
@@ -21,7 +22,9 @@ _DISCOVERED = "supplier.product.discovered"
 async def run() -> None:
     settings = Settings()
     session_factory = create_session_factory(create_engine(settings.db_dsn))
-    handler = build_discovered_handler(session_factory)
+    handler = build_discovered_handler(
+        session_factory, embedder=build_embedder(settings.embedder_url)
+    )
     async with KafkaPublisher(settings.kafka_bootstrap, client_id="matching-dlq") as dlq:
         consumer = KafkaEventConsumer(
             settings.kafka_bootstrap,

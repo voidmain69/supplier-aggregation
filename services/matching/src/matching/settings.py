@@ -12,5 +12,8 @@ class Settings(BaseSettings):
     kafka_bootstrap: str = "localhost:19092"
     consumer_group: str = "matching.ingest"
 
+    # Base URL of a Text-Embeddings-Inference server (bge-m3). Unset => offline HashingEmbedder.
+    embedder_url: str | None = None
+
     otlp_endpoint: str | None = None
     env: str = "dev"
