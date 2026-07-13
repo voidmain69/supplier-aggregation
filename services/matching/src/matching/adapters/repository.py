@@ -7,11 +7,58 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from matching.adapters.models import CanonicalProductRow, ProductLinkRow
+from matching.adapters.models import CanonicalProductRow, DecisionLogRow, ProductLinkRow
 from matching.domain.embedding import cosine
 from sa_core.ids import new_ulid
 from sa_core.pagination import decode_cursor, encode_cursor
 from sa_core.time import utc_now
+
+
+def record_decision(
+    session: AsyncSession,
+    *,
+    action: str,
+    operator: str,
+    canonical_product_id: str,
+    supplier_product_id: str | None = None,
+    method: str | None = None,
+    confidence: float | None = None,
+    note: str | None = None,
+) -> DecisionLogRow:
+    """Append an immutable audit record for a curation decision (app-minted ULID; not flushed)."""
+    row = DecisionLogRow(
+        decision_id=new_ulid(),
+        action=action,
+        operator=operator,
+        canonical_product_id=canonical_product_id,
+        supplier_product_id=supplier_product_id,
+        method=method,
+        confidence=confidence,
+        note=note,
+    )
+    session.add(row)
+    return row
+
+
+async def list_decisions(
+    session: AsyncSession,
+    *,
+    supplier_product_id: str | None = None,
+    cursor: str | None = None,
+    limit: int = 50,
+) -> tuple[Sequence[DecisionLogRow], str | None]:
+    """The decision journal: curation decisions newest-first (ULID desc). Cursor-paged.
+
+    Optionally filtered to one supplier product's history.
+    """
+    stmt = select(DecisionLogRow).order_by(DecisionLogRow.decision_id.desc()).limit(limit)
+    if supplier_product_id is not None:
+        stmt = stmt.where(DecisionLogRow.supplier_product_id == supplier_product_id)
+    if cursor is not None:
+        stmt = stmt.where(DecisionLogRow.decision_id < str(decode_cursor(cursor)["after"]))
+    rows = (await session.execute(stmt)).scalars().all()
+    next_cursor = encode_cursor({"after": rows[-1].decision_id}) if len(rows) == limit else None
+    return rows, next_cursor
 
 
 async def find_canonical_by_gtin(session: AsyncSession, gtin: str) -> CanonicalProductRow | None:

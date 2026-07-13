@@ -12,7 +12,12 @@ from sa_persistence.outbox import OutboxRow
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from matching.adapters.models import CanonicalProductRow, ProcessedEvent, ProductLinkRow
+from matching.adapters.models import (
+    CanonicalProductRow,
+    DecisionLogRow,
+    ProcessedEvent,
+    ProductLinkRow,
+)
 
 
 async def create_schema(engine: AsyncEngine) -> None:
@@ -32,6 +37,7 @@ async def create_schema(engine: AsyncEngine) -> None:
         tables=[
             CanonicalProductRow.__table__,
             ProductLinkRow.__table__,
+            DecisionLogRow.__table__,
             ProcessedEvent.__table__,
             OutboxRow.__table__,
         ],

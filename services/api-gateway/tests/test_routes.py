@@ -131,6 +131,30 @@ async def test_create_new__requires_matching_curate_scope(
     assert resp.status_code == 403
 
 
+async def test_decisions__forwards_to_matching_with_filter(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    backend.json = {"items": [{"decision_id": "01J", "action": "confirm"}], "next_cursor": None}
+    async with client(S.MATCHING_CURATE) as c:
+        resp = await c.get(
+            "/v1/curation/decisions",
+            params={"supplier_product_id": "01JSP", "limit": 10},
+            headers=auth,
+        )
+    assert resp.status_code == 200
+    sent = backend.requests[-1]
+    assert str(sent.url).startswith("http://matching.test/v1/curation/decisions")
+    assert sent.url.params["supplier_product_id"] == "01JSP"
+
+
+async def test_decisions__requires_matching_curate_scope(
+    client: ClientFactory, auth: Headers
+) -> None:
+    async with client(S.CATALOG_READ) as c:
+        resp = await c.get("/v1/curation/decisions", headers=auth)
+    assert resp.status_code == 403
+
+
 async def test_merge__forwards_body_and_operator_id(
     client: ClientFactory, backend: Any, auth: Headers
 ) -> None:

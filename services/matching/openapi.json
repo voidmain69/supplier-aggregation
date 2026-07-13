@@ -529,6 +529,95 @@
           }
         ]
       }
+    },
+    "/v1/curation/decisions": {
+      "get": {
+        "tags": [
+          "curation"
+        ],
+        "summary": "List the curation decision journal",
+        "description": "The append-only audit log of curation decisions (confirm / reject / create-new / merge), newest first. Cursor paginated. Optionally filter to one supplier product's history.",
+        "operationId": "listDecisions",
+        "parameters": [
+          {
+            "name": "supplier_product_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one supplier product's decision history.",
+              "title": "Supplier Product Id"
+            },
+            "description": "Filter to one supplier product's decision history."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous response's next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque cursor from a previous response's next_cursor."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Max items per page (1-200, default 50).",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Max items per page (1-200, default 50)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_DecisionOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -656,6 +745,93 @@
         ],
         "title": "CurationItemOut",
         "description": "A supplier→canonical link awaiting an operator decision."
+      },
+      "DecisionOut": {
+        "properties": {
+          "decision_id": {
+            "type": "string",
+            "title": "Decision Id",
+            "description": "ULID of this decision (also the time-ordering key)."
+          },
+          "action": {
+            "type": "string",
+            "title": "Action",
+            "description": "What was decided: confirm | reject | create_new | merge."
+          },
+          "supplier_product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Product Id",
+            "description": "The supplier product decided (null for a merge)."
+          },
+          "canonical_product_id": {
+            "type": "string",
+            "title": "Canonical Product Id",
+            "description": "The canonical product the decision resolved to."
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method",
+            "description": "Match method, if applicable."
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence",
+            "description": "Candidate confidence in [0,1], if applicable."
+          },
+          "operator": {
+            "type": "string",
+            "title": "Operator",
+            "description": "Who decided (operator id, or 'system' / 'operator')."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "Human-readable context, if any."
+          },
+          "decided_at": {
+            "type": "string",
+            "title": "Decided At",
+            "description": "When the decision was made (ISO-8601 UTC)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision_id",
+          "action",
+          "canonical_product_id",
+          "operator",
+          "decided_at"
+        ],
+        "title": "DecisionOut",
+        "description": "One immutable entry in the curation decision journal (audit log)."
       },
       "HTTPValidationError": {
         "properties": {
@@ -814,6 +990,44 @@
           "items"
         ],
         "title": "Page[CurationItemOut]"
+      },
+      "Page_DecisionOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "total_estimate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Estimate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "Page[DecisionOut]"
       },
       "Problem": {
         "properties": {

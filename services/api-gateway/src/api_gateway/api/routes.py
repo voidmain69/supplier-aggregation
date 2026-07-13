@@ -320,6 +320,41 @@ async def get_curation_queue(
     return _relay(resp)
 
 
+@router.get(
+    "/curation/decisions",
+    operation_id="getCurationDecisions",
+    summary="List the curation decision journal",
+    description=(
+        "Append-only audit log of curation decisions (confirm / reject / create-new / merge), "
+        "newest first. Optionally filter to one supplier product's history. Cursor-paginated. "
+        "Requires scope `matching:curate`."
+    ),
+    responses=_GATEWAY_ERRORS,
+)
+async def get_curation_decisions(
+    _: Annotated[Principal, Depends(require(Scopes.MATCHING_CURATE))],
+    downstream: Annotated[Downstream, Depends(get_downstream)],
+    supplier_product_id: Annotated[
+        str | None, Query(description="Filter to one supplier product's decision history.")
+    ] = None,
+    cursor: Annotated[
+        str | None, Query(description="Opaque cursor from a previous response's next_cursor.")
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=200, description="Max items per page (1-200).")] = 50,
+) -> Response:
+    resp = await downstream.request(
+        "matching",
+        "GET",
+        "/v1/curation/decisions",
+        params={
+            "supplier_product_id": supplier_product_id,
+            "cursor": cursor,
+            "limit": limit,
+        },
+    )
+    return _relay(resp)
+
+
 @router.post(
     "/curation/links/{supplier_product_id}/confirm",
     operation_id="confirmCurationLink",

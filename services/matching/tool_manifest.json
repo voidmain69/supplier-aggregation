@@ -29,6 +29,15 @@
       "typical_latency_ms": 100
     },
     {
+      "name": "list_decisions",
+      "operation_id": "listDecisions",
+      "when_to_use": "Audit the curation decision journal (confirm/reject/create-new/merge), newest first; optionally one supplier product's history.",
+      "when_not_to_use": "You want items still awaiting review (list_curation_queue) or current canonical state (list_canonical_products).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 100
+    },
+    {
       "name": "confirm_link",
       "operation_id": "confirmLink",
       "when_to_use": "Operator confirms a suggested supplier->canonical match; emits the confirmation.",
