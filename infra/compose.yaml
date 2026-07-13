@@ -257,6 +257,9 @@ services:
       MATCHING_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/matching
       MATCHING_KAFKA_BOOTSTRAP: redpanda:9092
       MATCHING_OTLP_ENDPOINT: http://otel-collector:4317
+      # TEI (BAAI/bge-m3) URL for real embeddings; unset => offline HashingEmbedder.
+      # e.g. EMBEDDER_URL=http://192.168.0.192:8081 (GPU node) before `make up`.
+      MATCHING_EMBEDDER_URL: ${EMBEDDER_URL:-}
     command: ["uv", "run", "python", "-m", "matching.consumer"]
     depends_on:
       matching-migrate: {condition: service_completed_successfully}
@@ -361,6 +364,9 @@ services:
     environment:
       SEARCH_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/search
       SEARCH_OTLP_ENDPOINT: http://otel-collector:4317
+      # TEI (BAAI/bge-m3) URL for real embeddings; unset => offline HashingEmbedder.
+      # e.g. EMBEDDER_URL=http://192.168.0.192:8081 (GPU node) before `make up`.
+      SEARCH_EMBEDDER_URL: ${EMBEDDER_URL:-}
     depends_on:
       search-migrate: {condition: service_completed_successfully}
 
@@ -371,6 +377,7 @@ services:
       SEARCH_DB_DSN: postgresql+asyncpg://sa:sa_dev_only@postgres:5432/search
       SEARCH_KAFKA_BOOTSTRAP: redpanda:9092
       SEARCH_OTLP_ENDPOINT: http://otel-collector:4317
+      SEARCH_EMBEDDER_URL: ${EMBEDDER_URL:-}
     command: ["uv", "run", "python", "-m", "search.consumer"]
     depends_on:
       search-migrate: {condition: service_completed_successfully}

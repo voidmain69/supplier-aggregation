@@ -15,7 +15,9 @@ import re
 from typing import Protocol
 
 # Fixed at the DB column width (Vector(EMBEDDING_DIM)); changing it is a migration.
-EMBEDDING_DIM = 256
+# 1024 is the native width of BAAI/bge-m3, the production embedder (adapters.embedder.TeiEmbedder);
+# HashingEmbedder is parameterised by dim, so the offline default matches the same column width.
+EMBEDDING_DIM = 1024
 
 _TOKEN = re.compile(r"[^a-z0-9]+")
 
