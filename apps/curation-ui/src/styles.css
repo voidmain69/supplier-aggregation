@@ -1,0 +1,91 @@
+@import 'tailwindcss';
+
+/* Class-based dark mode: <html> gets `.dark` or `.light` from the theme store (system default). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Semantic design tokens (curation-ui-plan §9.1). Components use ONLY these — never raw colors.
+ * A dense backoffice: neutral surfaces, saturated accents reserved for meaning
+ * (success = confirm/match, danger = reject/mismatch, warning = collision/low confidence).
+ */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --border: #e1e4ea;
+  --text: #1a1d24;
+  --muted: #667085;
+  --accent: #2563eb;
+  --accent-fg: #ffffff;
+  --success: #15803d;
+  --success-bg: #dcfce7;
+  --danger: #b91c1c;
+  --danger-bg: #fee2e2;
+  --warning: #b45309;
+  --warning-bg: #fef3c7;
+  --info: #0e7490;
+}
+
+.dark {
+  --bg: #0f1115;
+  --surface: #171a21;
+  --surface-2: #1e222b;
+  --border: #2a2f3a;
+  --text: #e6e8ec;
+  --muted: #98a1b2;
+  --accent: #3b82f6;
+  --accent-fg: #ffffff;
+  --success: #4ade80;
+  --success-bg: #14331f;
+  --danger: #f87171;
+  --danger-bg: #3a1517;
+  --warning: #fbbf24;
+  --warning-bg: #3a2c0c;
+  --info: #22d3ee;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-info: var(--info);
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Menlo', monospace;
+  --radius-md: 8px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible focus for keyboard-first operation (curation-ui-plan §9.2). */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

@@ -1,0 +1,117 @@
+import { QueryClient, QueryClientProvider, type InfiniteData } from '@tanstack/react-query';
+import { renderHook, waitFor } from '@testing-library/react';
+import { http as mswHttp, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
+import type { ReactNode } from 'react';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+
+import { queryKeys } from '@/shared/api/query-keys';
+import type { CurationItem, Page } from '@/shared/api/types';
+
+import { useDecide } from './use-decision';
+
+const BASE = 'http://localhost:8080';
+
+function item(id: string): CurationItem {
+  return {
+    supplier_product_id: id,
+    canonical_product_id: `canon-${id}`,
+    method: 'rag_suggested',
+    confidence: 0.7,
+    status: 'pending_review',
+  };
+}
+
+const server = setupServer();
+
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: 'error' });
+});
+afterEach(() => {
+  server.resetHandlers();
+});
+afterAll(() => {
+  server.close();
+});
+
+function seededClient(ids: string[]): QueryClient {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const data: InfiniteData<Page<CurationItem>> = {
+    pages: [{ items: ids.map(item), next_cursor: null, total_estimate: null }],
+    pageParams: [null],
+  };
+  client.setQueryData(queryKeys.curationQueue(), data);
+  return client;
+}
+
+function wrapper(client: QueryClient) {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  };
+}
+
+function queueIds(client: QueryClient): string[] {
+  const data = client.getQueryData<InfiniteData<Page<CurationItem>>>(queryKeys.curationQueue());
+  return (data?.pages ?? []).flatMap((p) => p.items.map((i) => i.supplier_product_id));
+}
+
+describe('useDecide', () => {
+  it('confirms a link and removes it from the queue cache', async () => {
+    server.use(
+      mswHttp.post(`${BASE}/v1/curation/links/:id/confirm`, ({ params }) =>
+        HttpResponse.json({
+          supplier_product_id: params.id,
+          canonical_product_id: `canon-${String(params.id)}`,
+          status: 'confirmed',
+        }),
+      ),
+    );
+    const client = seededClient(['a', 'b', 'c']);
+    const { result } = renderHook(() => useDecide(), { wrapper: wrapper(client) });
+
+    await result.current('b', 'confirm');
+
+    await waitFor(() => {
+      expect(queueIds(client)).toEqual(['a', 'c']);
+    });
+  });
+
+  it('rolls back the optimistic removal when the write fails with a server error', async () => {
+    server.use(
+      mswHttp.post(`${BASE}/v1/curation/links/:id/reject`, () =>
+        HttpResponse.json(
+          { type: 't', title: 'x', status: 500, detail: 'boom' },
+          { status: 500, headers: { 'content-type': 'application/problem+json' } },
+        ),
+      ),
+    );
+    const client = seededClient(['a', 'b']);
+    const { result } = renderHook(() => useDecide(), { wrapper: wrapper(client) });
+
+    await result.current('a', 'reject');
+
+    // Optimistically removed, then restored on failure.
+    await waitFor(() => {
+      expect(queueIds(client)).toEqual(['a', 'b']);
+    });
+  });
+
+  it('keeps a 409-conflicted item removed (already decided elsewhere)', async () => {
+    server.use(
+      mswHttp.post(`${BASE}/v1/curation/links/:id/confirm`, () =>
+        HttpResponse.json(
+          { type: 't', title: 'x', status: 409, detail: 'already decided' },
+          { status: 409, headers: { 'content-type': 'application/problem+json' } },
+        ),
+      ),
+    );
+    const client = seededClient(['a', 'b']);
+    const { result } = renderHook(() => useDecide(), { wrapper: wrapper(client) });
+
+    await result.current('a', 'confirm');
+
+    await waitFor(() => {
+      expect(queueIds(client)).toEqual(['b']);
+    });
+  });
+});
