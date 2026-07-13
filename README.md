@@ -89,29 +89,34 @@ PostgreSQL + TimescaleDB + pgvector. Чому саме так — у [ADR](docs/
 | Сервіс | Відповідальність | Стан |
 |---|---|---|
 | `connector-brain` (+ шаблон `connector-*`) | Ізолює специфіку постачальника: сесії, rate limit, нормалізація, raw-архів; синк за подією | ✅ |
-| `sync-orchestrator` | Розклади синхронізацій → `sync.job.requested` | ✅ |
+| `sync-orchestrator` | Розклади синхронізацій → `sync.job.requested`; read/trigger API для моніторингу | ✅ |
 | `catalog` | Товари постачальників + канонічні товари | ✅ |
 | `matching` | Зіставлення EAN/UPC + pgvector-RAG-кандидати + черга курації | ✅ |
 | `offer` | Мультиакаунтні пропозиції, best-offer | ✅ |
 | `price-history` | Історія цін (Timescale), агрегати | ✅ |
 | `api-gateway` | Єдиний вхід: auth, скоупи, rate limiting | ✅ |
 | `mcp-gateway` | MCP-інструменти для AI-агентів | ✅ |
-| `search` | Пошук: лексичний + семантичний (RAG); гібрид (RRF) — заплановано | ✅ |
-| `curation-ui` | Backoffice оператора (є curation REST API) | ⏳ заплановано |
+| `search` | Пошук: лексичний (FTS) + семантичний (RAG) + гібрид (RRF + cross-encoder rerank + SPLADE) | ✅ |
+| `curation-ui` | Backoffice оператора: черга, ревʼю, журнал рішень, дашборд, моніторинг синків | ✅ |
 
-## Швидкий старт (після появи коду сервісів)
+## Швидкий старт
 
 ```bash
+cp .env.example .env         # dev-принципал для curation-ui + приклад акаунта синку
 make up                      # весь стек: інфра (Postgres+Timescale+pgvector, Redpanda, Redis, MinIO, Grafana)
-                             # + усі сервіси (кожен зі своєю БД і Alembic-міграціями)
+                             # + усі сервіси (кожен зі своєю БД і Alembic-міграціями) + curation-ui
 make migrate svc=<service>   # застосувати міграції сервісу вручну
 make scaffold name=<service> # створити новий сервіс із шаблону
 make lint test check         # перевірки перед пушем
 ```
 
-Після `make up`: REST-вхід — <http://localhost:8080> (api-gateway, потрібен bearer-токен),
+Після `make up`: **curation-ui** — <http://localhost:8088> (вхід токеном `dev-operator-token` з
+`.env.example`), REST-вхід — <http://localhost:8080> (api-gateway, потрібен bearer-токен),
 MCP-інструменти — <http://localhost:8090> (mcp-gateway), Redpanda console — <http://localhost:8085>,
 Grafana — <http://localhost:3000>.
+
+> Якщо хост-порт `8080` зайнятий (напр. Windows winnat-резервація), задайте `API_GATEWAY_PORT` у `.env`
+> й перезапустіть UI-дев-сервер з `VITE_API_BASE_URL=http://localhost:<порт>` (деталі — у `.env.example`).
 
 ## Розробка
 
