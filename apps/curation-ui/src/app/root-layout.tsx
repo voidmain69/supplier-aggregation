@@ -11,12 +11,14 @@ function NavLink({
   to,
   children,
 }: {
-  to: '/queue' | '/canonical' | '/decisions';
+  to: '/' | '/queue' | '/canonical' | '/decisions';
   children: string;
 }) {
   return (
     <Link
       to={to}
+      // Exact match for the index link so "Огляд" is not active on every sub-route.
+      activeOptions={{ exact: to === '/' }}
       className="rounded-md px-3 py-1.5 text-sm text-muted hover:bg-surface-2"
       activeProps={{
         className: cn('rounded-md px-3 py-1.5 text-sm font-medium text-text bg-surface-2'),
@@ -37,6 +39,7 @@ export function RootLayout() {
         <header className="sticky top-0 z-40 flex items-center gap-2 border-b border-border bg-surface px-4 py-2">
           <span className="mr-2 font-semibold text-text">{t.appName}</span>
           <nav className="flex gap-1">
+            <NavLink to="/">{t.nav.dashboard}</NavLink>
             <NavLink to="/queue">{t.nav.queue}</NavLink>
             <NavLink to="/canonical">{t.nav.canonical}</NavLink>
             <NavLink to="/decisions">{t.nav.decisions}</NavLink>

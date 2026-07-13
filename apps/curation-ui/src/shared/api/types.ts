@@ -61,6 +61,14 @@ export interface LinkDecision {
   status: string;
 }
 
+/** Aggregate counts for the operator dashboard (mirrors CurationStatsOut). */
+export interface CurationStats {
+  pending_reviews: number;
+  canonical_products: number;
+  decisions_total: number;
+  decisions_by_action: Record<string, number>;
+}
+
 /** One entry in the curation decision journal (mirrors DecisionOut from the matching service). */
 export interface Decision {
   decision_id: string;

@@ -7,10 +7,25 @@
 export const t = {
   appName: 'Курація матчингу',
   nav: {
+    dashboard: 'Огляд',
     queue: 'Черга',
     canonical: 'Канонічні товари',
     decisions: 'Журнал рішень',
     signOut: 'Вийти',
+  },
+  dashboard: {
+    title: 'Огляд',
+    subtitle: 'Поточний стан курації матчингу.',
+    pending: 'Черга курації',
+    pendingHint: 'товарів очікують на рішення',
+    canonical: 'Канонічні товари',
+    canonicalHint: 'усього на платформі',
+    decisions: 'Рішень усього',
+    decisionsHint: 'у журналі',
+    activity: 'Рішення за типом',
+    recent: 'Останні рішення',
+    recentEmpty: 'Рішень ще немає.',
+    seeAll: 'Весь журнал →',
   },
   login: {
     title: 'Вхід куратора',

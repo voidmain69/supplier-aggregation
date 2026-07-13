@@ -3,6 +3,7 @@ import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/
 import { tokenStore } from '@/shared/api/token';
 import { CanonicalDetailPage } from '@/pages/canonical/canonical-detail-page';
 import { CanonicalListPage } from '@/pages/canonical/canonical-list-page';
+import { DashboardPage } from '@/pages/dashboard/dashboard-page';
 import { DecisionsPage } from '@/pages/decisions/decisions-page';
 import { LoginPage } from '@/pages/login/login-page';
 import { QueuePage } from '@/pages/queue/queue-page';
@@ -22,10 +23,8 @@ const rootRoute = createRootRoute({ component: RootLayout });
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  beforeLoad: () => {
-    // eslint-disable-next-line @typescript-eslint/only-throw-error
-    throw redirect({ to: '/queue' });
-  },
+  beforeLoad: requireAuth,
+  component: DashboardPage,
 });
 
 const loginRoute = createRoute({

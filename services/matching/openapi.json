@@ -239,6 +239,33 @@
         ]
       }
     },
+    "/v1/curation/stats": {
+      "get": {
+        "tags": [
+          "curation"
+        ],
+        "summary": "Curation stats for the operator dashboard",
+        "description": "Aggregate counts for the operator dashboard: queue depth (pending reviews), total canonical products, and curation decisions broken down by action.",
+        "operationId": "getCurationStats",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurationStatsOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/curation/queue": {
       "get": {
         "tags": [
@@ -745,6 +772,42 @@
         ],
         "title": "CurationItemOut",
         "description": "A supplier→canonical link awaiting an operator decision."
+      },
+      "CurationStatsOut": {
+        "properties": {
+          "pending_reviews": {
+            "type": "integer",
+            "title": "Pending Reviews",
+            "description": "Links awaiting an operator decision (queue depth)."
+          },
+          "canonical_products": {
+            "type": "integer",
+            "title": "Canonical Products",
+            "description": "Total canonical (platform) products."
+          },
+          "decisions_total": {
+            "type": "integer",
+            "title": "Decisions Total",
+            "description": "Total recorded curation decisions."
+          },
+          "decisions_by_action": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Decisions By Action",
+            "description": "Decision counts keyed by action (confirm / reject / create_new / merge)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "pending_reviews",
+          "canonical_products",
+          "decisions_total",
+          "decisions_by_action"
+        ],
+        "title": "CurationStatsOut",
+        "description": "Aggregate counts for the operator dashboard."
       },
       "DecisionOut": {
         "properties": {

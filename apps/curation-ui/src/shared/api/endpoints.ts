@@ -9,6 +9,7 @@ import type {
   CanonicalProduct,
   CreateCanonicalInput,
   CurationItem,
+  CurationStats,
   Decision,
   LinkDecision,
   MergeResult,
@@ -24,6 +25,10 @@ export interface PageParams {
 }
 
 // -------------------------------------------------------------------------- curation
+export function getCurationStats(): Promise<CurationStats> {
+  return http.get('/v1/curation/stats');
+}
+
 export function getCurationQueue(params: PageParams = {}): Promise<Page<CurationItem>> {
   return http.get('/v1/curation/queue', { params: { cursor: params.cursor, limit: params.limit } });
 }

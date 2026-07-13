@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 
+import { ActionBadge } from '@/entities/decision/action-badge';
 import { useDecisions } from '@/entities/decision/use-decisions';
 import type { Decision } from '@/shared/api/types';
 import { t } from '@/shared/config/i18n';
 import { timeAgo } from '@/shared/lib/format';
-import { Badge, type BadgeTone } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card } from '@/shared/ui/card';
 import { cn } from '@/shared/ui/cn';
@@ -15,13 +15,6 @@ import { Skeleton } from '@/shared/ui/skeleton';
 
 type Filter = 'all' | 'confirm' | 'reject' | 'create_new' | 'merge';
 const FILTERS: readonly Filter[] = ['all', 'confirm', 'reject', 'create_new', 'merge'];
-
-const ACTION_TONE: Record<string, BadgeTone> = {
-  confirm: 'success',
-  reject: 'danger',
-  create_new: 'info',
-  merge: 'warning',
-};
 
 /** The curation decision journal: an append-only audit of confirm/reject/create-new/merge. */
 export function DecisionsPage() {
@@ -94,9 +87,7 @@ export function DecisionsPage() {
                       {timeAgo(d.decided_at)}
                     </td>
                     <td className="px-3 py-2">
-                      <Badge tone={ACTION_TONE[d.action] ?? 'neutral'}>
-                        {t.decisions.actions[d.action] ?? d.action}
-                      </Badge>
+                      <ActionBadge action={d.action} />
                     </td>
                     <td className="px-3 py-2">
                       <Mono value={d.supplier_product_id} />

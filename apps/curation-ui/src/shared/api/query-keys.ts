@@ -5,6 +5,7 @@
 
 export const queryKeys = {
   curationQueue: () => ['curation', 'queue'] as const,
+  curationStats: () => ['curation', 'stats'] as const,
   decisions: () => ['curation', 'decisions'] as const,
   supplierProduct: (id: string) => ['supplier-product', id] as const,
   supplierProductsByCanonical: (canonicalId: string) =>

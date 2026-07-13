@@ -29,6 +29,15 @@
       "typical_latency_ms": 100
     },
     {
+      "name": "get_curation_stats",
+      "operation_id": "getCurationStats",
+      "when_to_use": "Get dashboard aggregate counts: queue depth, canonical total, decisions by action.",
+      "when_not_to_use": "You need the individual queue items (list_curation_queue) or decision entries (list_decisions).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 60
+    },
+    {
       "name": "list_decisions",
       "operation_id": "listDecisions",
       "when_to_use": "Audit the curation decision journal (confirm/reject/create-new/merge), newest first; optionally one supplier product's history.",
