@@ -1,0 +1,74 @@
+# Dependabot configuration.
+#
+# Covered ecosystems: GitHub Actions, curation-ui (pnpm), service Dockerfiles,
+# and the local compose stack. PRs target the default branch (develop).
+#
+# Python (uv workspace) is intentionally NOT covered: uv.lock is kept out of git
+# and all pyproject.toml constraints are open ranges (>=), so there is nothing
+# for Dependabot to bump. If uv.lock is ever committed, add a `package-ecosystem:
+# uv` entry with `directory: "/"` to get lockfile update PRs.
+version: 2
+updates:
+  # CI workflow actions (.github/workflows/*)
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Kyiv
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # curation-ui frontend (pnpm, lockfile committed)
+  - package-ecosystem: npm
+    directory: "/apps/curation-ui"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Kyiv
+    commit-message:
+      prefix: "chore(curation-ui)"
+    open-pull-requests-limit: 10
+    groups:
+      # Minor + patch bumps land as one PR; majors stay individual so
+      # breaking upgrades (React, Vite, ESLint, ...) get separate review.
+      curation-ui-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+
+  # Base images of all service Dockerfiles (one grouped PR across services,
+  # so e.g. a python:3.12-slim bump touches every service at once).
+  - package-ecosystem: docker
+    directories:
+      - "/services/*"
+      - "/apps/curation-ui"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Kyiv
+    commit-message:
+      prefix: "chore(infra)"
+    groups:
+      docker-base-images:
+        patterns: ["*"]
+
+  # Local infra stack images (Postgres/Timescale, Redpanda, Grafana, OTel, ...).
+  # Locally built sa-*:dev images are not on a registry and are skipped.
+  - package-ecosystem: docker-compose
+    directory: "/infra"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Kyiv
+    commit-message:
+      prefix: "chore(infra)"
+    groups:
+      compose-stack-images:
+        patterns: ["*"]
