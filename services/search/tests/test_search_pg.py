@@ -7,7 +7,13 @@ the stored text and the query being lowercased. This proves a mixed-case query s
 from __future__ import annotations
 
 import pytest
-from search.adapters.repository import find_by_gtin, index_document, search, semantic_search
+from search.adapters.repository import (
+    find_by_gtin,
+    index_document,
+    lexical_candidates,
+    search,
+    semantic_search,
+)
 from search.domain.embedding import HashingEmbedder, product_text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -47,6 +53,42 @@ async def test_search__case_insensitive_on_postgres(pg_session_factory: SessionF
 
     assert [h.supplier_product_id for h in hits] == ["01J00000000000000000000001"]
     assert by_gtin_empty == []
+
+
+async def test_search__fts_matches_whole_lexemes_not_substrings(
+    pg_session_factory: SessionFactory,
+) -> None:
+    # "cat" must not match "category" — FTS matches lexemes, unlike a naive LIKE '%cat%'.
+    async with pg_session_factory() as session, session.begin():
+        await index_document(
+            session, _doc("01J00000000000000000000001", name="category cable organizer")
+        )
+
+    async with pg_session_factory() as session:
+        substring_query, _ = await search(session, "cat")
+        lexeme_query, _ = await search(session, "cable")
+
+    assert substring_query == []  # no substring false-positive
+    assert [h.supplier_product_id for h in lexeme_query] == ["01J00000000000000000000001"]
+
+
+async def test_lexical_candidates__ranks_by_fts_relevance(
+    pg_session_factory: SessionFactory,
+) -> None:
+    # Both match "wireless"; the doc mentioning it more often outranks the other (ts_rank).
+    async with pg_session_factory() as session, session.begin():
+        await index_document(session, _doc("01J00000000000000000000001", name="wireless charger"))
+        await index_document(
+            session, _doc("01J00000000000000000000002", name="wireless wireless dual charger")
+        )
+
+    async with pg_session_factory() as session:
+        candidates = await lexical_candidates(session, "wireless")
+
+    assert [c.supplier_product_id for c in candidates] == [
+        "01J00000000000000000000002",  # "wireless" twice -> higher ts_rank
+        "01J00000000000000000000001",
+    ]
 
 
 async def test_semantic_search__pgvector_nearest_on_postgres(
