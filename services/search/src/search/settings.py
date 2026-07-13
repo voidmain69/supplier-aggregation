@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     embedder_url: str | None = None
     # TEI cross-encoder (bge-reranker) URL for hybrid rerank. Unset => offline NoopReranker.
     reranker_url: str | None = None
+    # TEI SPLADE (sparse) URL for the 3rd hybrid retriever. Unset => sparse retrieval disabled.
+    sparse_embedder_url: str | None = None
 
     otlp_endpoint: str | None = None
     env: str = "dev"

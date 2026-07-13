@@ -114,7 +114,7 @@
           "search"
         ],
         "summary": "Hybrid product search (lexical + semantic, reranked)",
-        "description": "Best-quality search: retrieves candidates both lexically (exact tokens) and semantically (embedding meaning), fuses them with Reciprocal Rank Fusion, then reorders with a cross-encoder reranker. Use this when you want the single best-ranked list and don't need pagination; each hit carries a relevance score. Prefer the by-code/articul/gtin lookups for exact identifiers.",
+        "description": "Best-quality search: retrieves candidates lexically (exact tokens), semantically (embedding meaning) and — when a SPLADE model is configured — by learned-sparse terms, fuses them with Reciprocal Rank Fusion, then reorders with a cross-encoder reranker. Use this when you want the single best-ranked list and don't need pagination; each hit has a relevance score. Prefer the by-code/articul/gtin lookups for exact identifiers.",
         "operationId": "hybridSearch",
         "requestBody": {
           "content": {

@@ -11,6 +11,7 @@ from sa_persistence.db import create_engine, create_session_factory
 from sa_observability import bootstrap
 from search.adapters.embedder import build_embedder
 from search.adapters.reranker import build_reranker
+from search.adapters.sparse_embedder import build_sparse_embedder
 from search.api.routes import router
 from search.settings import Settings
 
@@ -31,6 +32,8 @@ def create_app() -> FastAPI:
     app.state.embedder = build_embedder(settings.embedder_url)
     # Real TEI cross-encoder when SEARCH_RERANKER_URL is set, else order-preserving NoopReranker.
     app.state.reranker = build_reranker(settings.reranker_url)
+    # TEI SPLADE sparse embedder when SEARCH_SPARSE_EMBEDDER_URL is set, else None (sparse off).
+    app.state.sparse_embedder = build_sparse_embedder(settings.sparse_embedder_url)
     bootstrap(app, service_name="search", env=settings.env, otlp_endpoint=settings.otlp_endpoint)
     app.include_router(router)
     return app

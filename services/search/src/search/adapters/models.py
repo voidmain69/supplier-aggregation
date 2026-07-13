@@ -10,16 +10,21 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pgvector.sqlalchemy import Vector
+from pgvector import SparseVector
+from pgvector.sqlalchemy import SPARSEVEC, Vector
 from sa_persistence.db import Base
 from sqlalchemy import JSON, DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from sa_core.time import utc_now
 from search.domain.embedding import EMBEDDING_DIM
+from search.domain.sparse import SPARSE_DIM
 
 # pgvector on Postgres; a portable JSON list on SQLite (unit tests) — same Python value.
 _EMBEDDING = Vector(EMBEDDING_DIM).with_variant(JSON(), "sqlite")
+# Learned-sparse (SPLADE) vector: pgvector sparsevec on Postgres, JSON on SQLite. Written only when
+# a sparse embedder is configured (Postgres path); unit tests leave it null.
+_SPARSE = SPARSEVEC(SPARSE_DIM).with_variant(JSON(), "sqlite")
 
 
 class SearchDocumentRow(Base):
@@ -37,6 +42,7 @@ class SearchDocumentRow(Base):
     brand: Mapped[str | None] = mapped_column(String(256), default=None)
     search_text: Mapped[str] = mapped_column(Text)
     embedding: Mapped[list[float] | None] = mapped_column(_EMBEDDING, default=None)
+    embedding_sparse: Mapped[SparseVector | None] = mapped_column(_SPARSE, default=None)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
