@@ -4,6 +4,7 @@
 # Host entrypoints once up:
 #   api-gateway  http://localhost:8080   (REST ingress; needs a bearer token — see api-gateway README)
 #   mcp-gateway  http://localhost:8090   (MCP tools for agents)
+#   curation-ui  http://localhost:8088   (backoffice for matching curators; needs a bearer token)
 #   Redpanda console http://localhost:8085 · Grafana http://localhost:3000
 #
 # Each service owns its own database (created by db-init) and applies its Alembic migrations
@@ -341,6 +342,8 @@ services:
       API_GATEWAY_PRICE_HISTORY_BASE_URL: http://price-history:8000
       API_GATEWAY_MATCHING_BASE_URL: http://matching:8000
       API_GATEWAY_OTLP_ENDPOINT: http://otel-collector:4317
+      # Browser origins allowed to call the gateway (curation-ui: static host + Vite dev server).
+      API_GATEWAY_CORS_ALLOW_ORIGINS: '["http://localhost:8088","http://localhost:5173"]'
       # Add principals as JSON (token SHA-256 hash -> {subject, scopes}):
       # API_GATEWAY_PRINCIPALS: '{"<sha256>": {"subject": "agent:demo", "scopes": ["catalog:read"]}}'
     ports: ["8080:8000"]
@@ -357,3 +360,16 @@ services:
       MCP_GATEWAY_OTLP_ENDPOINT: http://otel-collector:4317
     ports: ["8090:8000"]
     depends_on: [catalog, offer, price-history]
+
+  # --- backoffice: curation UI (static SPA over the gateway) ------------------
+  curation-ui:
+    build:
+      context: ..
+      dockerfile: apps/curation-ui/Dockerfile
+      args:
+        # Baked into the bundle: the browser calls the host-published gateway port.
+        VITE_API_BASE_URL: http://localhost:8080
+    image: sa-curation-ui:dev
+    restart: unless-stopped
+    ports: ["8088:80"]
+    depends_on: [api-gateway]
