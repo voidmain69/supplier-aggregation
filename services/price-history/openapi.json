@@ -217,10 +217,171 @@
           }
         ]
       }
+    },
+    "/v1/price-history/daily": {
+      "get": {
+        "tags": [
+          "price-history"
+        ],
+        "summary": "Get an offer's daily price rollup",
+        "description": "Per-day UAH-price buckets (min/max/avg/last and count) for an offer over an optional time range, oldest day first. Use it to chart a daily price trend.",
+        "operationId": "getPriceDaily",
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Offer id (ULID) to read the price history of.",
+              "title": "Offer Id"
+            },
+            "description": "Offer id (ULID) to read the price history of."
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Start of the range (ISO 8601 UTC), inclusive.",
+              "title": "From"
+            },
+            "description": "Start of the range (ISO 8601 UTC), inclusive."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "End of the range (ISO 8601 UTC), inclusive.",
+              "title": "To"
+            },
+            "description": "End of the range (ISO 8601 UTC), inclusive."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DailyPriceStatOut"
+                  },
+                  "title": "Response Getpricedaily"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
+      "DailyPriceStatOut": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day",
+            "description": "Calendar day (UTC, YYYY-MM-DD)."
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "Number of price points observed that day."
+          },
+          "min_uah": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Uah",
+            "description": "Lowest UAH price that day."
+          },
+          "max_uah": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Uah",
+            "description": "Highest UAH price that day."
+          },
+          "avg_uah": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Uah",
+            "description": "Average UAH price that day."
+          },
+          "last_uah": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Uah",
+            "description": "Last UAH price of the day."
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "count"
+        ],
+        "title": "DailyPriceStatOut",
+        "description": "One day's UAH-price rollup for an offer."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {

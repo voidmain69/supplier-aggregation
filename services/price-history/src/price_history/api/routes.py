@@ -8,9 +8,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from price_history.adapters.repository import list_price_points, price_stats
+from price_history.adapters.repository import (
+    daily_price_stats,
+    list_price_points,
+    price_stats,
+)
 from price_history.api.deps import get_session
-from price_history.api.schemas import PricePointOut, PriceStatsOut
+from price_history.api.schemas import DailyPriceStatOut, PricePointOut, PriceStatsOut
 from sa_core.pagination import Page
 
 router = APIRouter(prefix="/v1", tags=["price-history"])
@@ -71,3 +75,23 @@ async def get_price_stats(
 ) -> PriceStatsOut:
     stats = await price_stats(session, offer_id=offer_id, from_ts=from_, to_ts=to)
     return PriceStatsOut(**stats)
+
+
+@router.get(
+    "/price-history/daily",
+    operation_id="getPriceDaily",
+    summary="Get an offer's daily price rollup",
+    description=(
+        "Per-day UAH-price buckets (min/max/avg/last and count) for an offer over an optional "
+        "time range, oldest day first. Use it to chart a daily price trend."
+    ),
+    response_model=list[DailyPriceStatOut],
+)
+async def get_price_daily(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    offer_id: _OfferId,
+    from_: _From = None,
+    to: _To = None,
+) -> list[DailyPriceStatOut]:
+    buckets = await daily_price_stats(session, offer_id=offer_id, from_ts=from_, to_ts=to)
+    return [DailyPriceStatOut(**b) for b in buckets]

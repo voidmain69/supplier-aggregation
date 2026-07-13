@@ -18,6 +18,15 @@
       "safety": "read_only",
       "cost_class": "cheap",
       "typical_latency_ms": 120
+    },
+    {
+      "name": "get_price_daily",
+      "operation_id": "getPriceDaily",
+      "when_to_use": "Get an offer's per-day UAH-price rollup (min/max/avg/last per day) to chart a daily price trend.",
+      "when_not_to_use": "You want overall stats (use get_price_stats) or every raw point (use get_price_history).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 130
     }
   ]
 }
