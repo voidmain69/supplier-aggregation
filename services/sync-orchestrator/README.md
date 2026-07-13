@@ -10,9 +10,21 @@ calls.
 
 ## Processes
 
+- **API** (`sync_orchestrator.main:create_app`) — read/trigger endpoints under `/v1` for the
+  curation-ui sync-monitoring page.
 - `python -m sync_orchestrator.scheduler` — each tick, stages `sync.job.requested` for due
   accounts (interval elapsed since last request) in one transaction.
 - `python -m sync_orchestrator.relay` — ships the outbox to Kafka.
+
+## API
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/v1/sync/accounts` | Per-account sync state: supplier, kind, mode, interval, `last_requested_at`, `next_due_at`, status `never\|ok\|overdue` |
+| POST | `/v1/sync/accounts/{account_id}/trigger` | Manual "sync now" — stages `sync.job.requested` immediately |
+
+Operational fields **only** — the API never returns `credentials_ref` or `settlement_currency`
+(hard rule 6). Errors are `application/problem+json`.
 
 ## Events
 
@@ -24,8 +36,9 @@ calls.
 
 Env prefix `SYNC_ORCHESTRATOR_` (see `settings.py`): `db_dsn`, `kafka_bootstrap`,
 `poll_interval_seconds`, and `accounts` — a JSON list of `{account_id, supplier_code,
-credentials_ref, settlement_currency, kind, interval_seconds}`. `credentials_ref` is a Vault
-pointer, never a secret.
+credentials_ref, settlement_currency, kind, interval_seconds}`, shared by the API and scheduler.
+`credentials_ref` is a Vault pointer, never a secret; it and `settlement_currency` stay server-side
+and are never exposed by the API.
 
 ## Run tests
 
