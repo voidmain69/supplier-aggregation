@@ -1,9 +1,12 @@
 # matching
 
-Owns the **canonical catalog** and the mapping from supplier products to canonical
-products. It does the deterministic **GTIN auto-link** and **candidate generation + operator
-curation** for products without a GTIN (lexical similarity now; semantic pgvector/RAG is
-a follow-up that swaps the scorer).
+Owns the **matching decisions** — the mapping from supplier products to canonical products.
+It does the deterministic **GTIN auto-link** and **candidate generation + operator curation**
+for products without a GTIN (lexical similarity now; semantic pgvector/RAG is a follow-up that
+swaps the scorer). It decides *membership* and emits `matching.link.confirmed`; building the
+canonical **card** (title/brand/gtin/attributes) belongs to the catalog service
+([ADR-0012](../../docs/adr/0012-catalog-owns-canonical.md)). Canonical *reads* are still served
+here transitionally (see below).
 
 Two processes (separate deployments):
 - **API** (`matching.main:create_app`) — read endpoints under `/v1`.
