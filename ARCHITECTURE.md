@@ -7,40 +7,43 @@
 **Мова документації:** українська. Мова коду, комітів, ідентифікаторів, коментарів: англійська.
 
 > Цей документ описує **цільову** архітектуру. Що з неї вже реалізовано (з зеленим CI), а що
-> свідомо відкладено — див. **[Стан реалізації](#стан-реалізації-2026-07-12)** нижче.
+> свідомо відкладено — див. **[Стан реалізації](#стан-реалізації-2026-07-13)** нижче.
 
 ---
 
-## Стан реалізації (2026-07-12)
+## Стан реалізації (2026-07-13)
 
 Наскрізний конвеєр працює й покритий тестами: **sync-orchestrator** за розкладом просить синк →
-**connector-brain** тягне Brain і публікує події → **catalog / offer / price-history / matching**
+**connector-brain** тягне Brain і публікує події → **catalog / offer / price-history / matching / search**
 споживають → **api-gateway / mcp-gateway** віддають назовні. `make up` піднімає всю систему.
 
-**Реалізовано (8 сервісів, 6 libs, зелений CI):**
+> Другу хвилю доставлено серією PR #29–#43 (див. ADR-0006…0010): надійність (S3, Vault, DLQ),
+> pricing/effective-price, дельта-синк, `search-service` (лексичний + семантичний), Timescale
+> continuous aggregates, а також **`curation-ui`** (backoffice матчингу) з операціями курації
+> confirm/reject/create-new/merge (PR #39–#40, план — [docs/curation-ui-plan.md](docs/curation-ui-plan.md)).
+
+**Реалізовано (9 сервісів, 6 libs, зелений CI):**
 
 | Область | Що зроблено |
 |---|---|
-| Фундамент | Монорепо (uv workspace), CI (ruff/mypy/import-linter/conventions/event-schemas/spectral/`compose config`), libs `core · contracts · connector-sdk · observability · persistence · messaging`, `scaffold`, стандарти + ADR-0001…0005 |
-| Надійність | Transactional outbox + relay-воркер у продюсерів, ідемпотентні консюмери, **Alembic-міграції** (5 stateful БД, expand-migrate-contract), наскрізний **E2E-тест** конвеєра |
-| Ingestion | `sync-orchestrator` (розклад per-account → `sync.job.requested`); `connector-brain` (сесії/SID, rate-limit 3 rps, нормалізація, raw-archive; консюмер `sync.job.requested` → повний синк; outbox relay) |
-| Core | `catalog` (SupplierProduct + canonical link), `offer` (мультиакаунтні офери + best-offer), `price-history` (Timescale time-series + stats), `matching` (GTIN auto-link + **pgvector RAG-кандидати** + черга курації через REST) |
-| Edge | `api-gateway` (bearer + скоупи + rate-limit + агрегований OpenAPI), `mcp-gateway` (8 MCP-інструментів: пошук/офери/best/product+offer/canonical/price-history/stats) |
-| Інфра | `make up` = Postgres(+Timescale+pgvector) · Redpanda · Redis · MinIO · OTel/Grafana **+ усі сервіси** (API/консюмери/relay, БД-на-сервіс, міграції на старті) |
+| Фундамент | Монорепо (uv workspace), CI (ruff/mypy/import-linter/conventions/event-schemas/spectral/`compose config`), libs `core · contracts · connector-sdk · observability · persistence · messaging`, `scaffold`, стандарти + ADR-0001…0010 |
+| Надійність | Transactional outbox + relay у продюсерів, ідемпотентні консюмери, **DLQ + обмежені ретраї + `tools/replay_dlq.py`** ([ADR-0006](docs/adr/0006-dead-letter-queue.md)), **Vault**-резолвер кредів + **S3/MinIO** raw-архів, **Alembic-міграції** (expand-migrate-contract), наскрізний **E2E-тест** |
+| Ingestion | `sync-orchestrator` (розклад per-account, режим full/delta → `sync.job.requested`); `connector-brain` (сесії/SID, rate-limit 3 rps, нормалізація, S3 raw-archive; **повний і дельта-синк** через `modified_products` + watermark, [ADR-0008](docs/adr/0008-delta-sync-watermark.md); outbox relay) |
+| Core | `catalog` (SupplierProduct + canonical link); `offer` (мультиакаунтні офери + **Pricing Engine / `effective_price`** + подія `offer.effective-price.changed`, [ADR-0007](docs/adr/0007-pricing-engine.md)); `price-history` (Timescale time-series + stats + **денний rollup / continuous aggregate + compression**, [ADR-0010](docs/adr/0010-portable-query-native-scale.md)); `matching` (GTIN auto-link + pgvector RAG + черга курації); **`search`** (лексичний + семантичний, [ADR-0009](docs/adr/0009-search-service.md)) |
+| Edge | `api-gateway` (bearer + скоупи + rate-limit + агрегований OpenAPI + CORS), `mcp-gateway` (MCP-інструменти: пошук/офери/best/product+offer/canonical/price-history/stats) |
+| Backoffice | **`curation-ui`** (React 19 + TS, `apps/curation-ui`): черга курації, робоче місце ревʼю (diff атрибутів, офери, історія цін), рішення **confirm / reject / create-new / merge**, канонічний каталог; ходить через api-gateway (bearer + скоупи `matching:curate`) |
+| Інфра | `make up` = Postgres(+Timescale+pgvector) · Redpanda · Redis · MinIO · OTel/Grafana **+ усі сервіси + curation-ui** (API/консюмери/relay, БД-на-сервіс, міграції на старті) |
 
 **Відкладено / поза поточним обсягом (свідомо):**
 
-- **`search-service`** як окремий сервіс — ще нема; RAG-інфраструктура (pgvector) уже є в `matching`.
-- **`curation-ui`** — є curation **REST API** (черга, confirm/reject), самого UI ще нема.
-- **Pricing Engine / `effective_price`** — офери тримають `price`/`price_uah`; розрахунок ефективної
-  ціни за фінансовими умовами акаунта ще не реалізовано.
-- **Timescale continuous aggregates / compression** — hypertable є, `stats` рахуються запитом;
-  безперервних агрегатів і політик компресії ще нема.
-- **DLQ + реплей**, **дельта-синхронізація за розкладом**, **другий конектор**.
-- **Зовнішні залежності**: `sync-consumer` connector-brain потребує **Vault**-резолвера кредів
-  (`credentials_ref` → login/пароль); raw-архів зараз in-memory (у проді — S3).
-- **Семантична модель ембедингів**: `matching` використовує детермінований hashing-ембедер як
-  стенд-ін; реальна модель підключається через протокол `Embedder` (зміна залежностей, не архітектури).
+- **OIDC для операторів + `curation-ui` v2**: зараз статичний bearer; журнал рішень, категорійний
+  мапінг, моніторинг синків, дашборд оператора — наступна хвиля (див. [docs/curation-ui-plan.md](docs/curation-ui-plan.md) §v2).
+- **Реальна модель ембедингів**: `matching` і `search` використовують детермінований hashing-ембедер як
+  стенд-ін; справжня модель підключається через протокол `Embedder` (зміна залежностей, не архітектури).
+- **Другий конектор** — валідація абстракцій connector-sdk на новому постачальнику.
+- **Розширення пошуку**: індексація **канонічних** товарів з `catalog.product.updated`, гібридне
+  **RRF**-злиття лексики + семантики, PostgreSQL FTS (`tsvector`)-ранжування.
+- **Пошук/price-history через gateway**: виставити `search` і денний rollup через api-gateway та mcp-gateway.
 
 ---
 
@@ -89,7 +92,7 @@
 | 5 | Сховища | **PostgreSQL 16** (+TimescaleDB для історії цін, +pgvector для ембедингів), Redis (кеш), S3/MinIO (сирі payload'и, зображення) | [ADR-0003](docs/adr/0003-storage.md) |
 | 6 | Матчинг | GTIN-детермінований auto-link + RAG-кандидати + **обов'язкова людська курація** | [ADR-0004](docs/adr/0004-matching-pipeline.md) |
 | 7 | AI-готовність | OpenAPI 3.1 з описами під LLM + `tool_manifest.json` на кожен сервіс + єдиний **MCP Gateway** | [ADR-0005](docs/adr/0005-ai-tools-ready.md) |
-| 8 | Мікросервіси | 8 сервісів + 4 бібліотеки; **1 сервіс = 1 БД-схема**, спільної БД між сервісами немає | цей документ |
+| 8 | Мікросервіси | 9 сервісів + 6 бібліотек; **1 сервіс = 1 БД-схема**, спільної БД між сервісами немає | цей документ |
 
 **Чому монорепо + мікросервіси + події (а не щось одне):**
 

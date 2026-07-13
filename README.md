@@ -96,7 +96,7 @@ PostgreSQL + TimescaleDB + pgvector. Чому саме так — у [ADR](docs/
 | `price-history` | Історія цін (Timescale), агрегати | ✅ |
 | `api-gateway` | Єдиний вхід: auth, скоупи, rate limiting | ✅ |
 | `mcp-gateway` | MCP-інструменти для AI-агентів | ✅ |
-| `search` | Гібридний пошук: лексичний + семантичний (RAG) | ⏳ заплановано |
+| `search` | Пошук: лексичний + семантичний (RAG); гібрид (RRF) — заплановано | ✅ |
 | `curation-ui` | Backoffice оператора (є curation REST API) | ⏳ заплановано |
 
 ## Швидкий старт (після появи коду сервісів)
