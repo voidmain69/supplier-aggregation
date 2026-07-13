@@ -3,6 +3,7 @@ import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/
 import { tokenStore } from '@/shared/api/token';
 import { CanonicalDetailPage } from '@/pages/canonical/canonical-detail-page';
 import { CanonicalListPage } from '@/pages/canonical/canonical-list-page';
+import { DecisionsPage } from '@/pages/decisions/decisions-page';
 import { LoginPage } from '@/pages/login/login-page';
 import { QueuePage } from '@/pages/queue/queue-page';
 import { ReviewPage } from '@/pages/review/review-page';
@@ -65,6 +66,13 @@ const canonicalDetailRoute = createRoute({
   component: CanonicalDetailPage,
 });
 
+const decisionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/decisions',
+  beforeLoad: requireAuth,
+  component: DecisionsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
@@ -72,6 +80,7 @@ const routeTree = rootRoute.addChildren([
   reviewRoute,
   canonicalListRoute,
   canonicalDetailRoute,
+  decisionsRoute,
 ]);
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent' });

@@ -9,6 +9,7 @@ import type {
   CanonicalProduct,
   CreateCanonicalInput,
   CurationItem,
+  Decision,
   LinkDecision,
   MergeResult,
   Offer,
@@ -25,6 +26,18 @@ export interface PageParams {
 // -------------------------------------------------------------------------- curation
 export function getCurationQueue(params: PageParams = {}): Promise<Page<CurationItem>> {
   return http.get('/v1/curation/queue', { params: { cursor: params.cursor, limit: params.limit } });
+}
+
+export function getDecisions(
+  params: { supplierProductId?: string } & PageParams = {},
+): Promise<Page<Decision>> {
+  return http.get('/v1/curation/decisions', {
+    params: {
+      supplier_product_id: params.supplierProductId,
+      cursor: params.cursor,
+      limit: params.limit,
+    },
+  });
 }
 
 export function confirmLink(supplierProductId: string): Promise<LinkDecision> {

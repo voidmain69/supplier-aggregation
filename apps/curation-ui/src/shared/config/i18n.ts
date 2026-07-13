@@ -9,6 +9,7 @@ export const t = {
   nav: {
     queue: 'Черга',
     canonical: 'Канонічні товари',
+    decisions: 'Журнал рішень',
     signOut: 'Вийти',
   },
   login: {
@@ -68,6 +69,34 @@ export const t = {
     mergeHint: 'Усі лінки джерела перейдуть на цей товар, а джерело буде видалено. Дія незворотна.',
     merged: (n: number) => `Обʼєднано. Перенесено лінків: ${String(n)}`,
     mergeInvalidId: 'Вкажіть коректний ID канонічного товару.',
+  },
+  decisions: {
+    title: 'Журнал рішень',
+    subtitle: 'Аудит рішень курації — підтвердження, відхилення, нові товари, обʼєднання.',
+    empty: 'Рішень ще немає.',
+    emptyHint: 'Тут зʼявлятимуться рішення курації.',
+    loadMore: 'Завантажити ще',
+    filters: {
+      all: 'Усі',
+      confirm: 'Підтвердження',
+      reject: 'Відхилення',
+      create_new: 'Нові',
+      merge: 'Обʼєднання',
+    },
+    columns: {
+      when: 'Коли',
+      action: 'Дія',
+      product: 'Товар',
+      canonical: 'Канонічний',
+      operator: 'Оператор',
+      note: 'Нотатка',
+    },
+    actions: {
+      confirm: 'Підтверджено',
+      reject: 'Відхилено',
+      create_new: 'Створено новий',
+      merge: 'Обʼєднано',
+    } as Record<string, string>,
   },
   common: {
     retry: 'Повторити',

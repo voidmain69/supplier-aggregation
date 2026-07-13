@@ -7,7 +7,13 @@ import { Toaster } from '@/shared/ui/toaster';
 
 import { useTheme } from './theme';
 
-function NavLink({ to, children }: { to: '/queue' | '/canonical'; children: string }) {
+function NavLink({
+  to,
+  children,
+}: {
+  to: '/queue' | '/canonical' | '/decisions';
+  children: string;
+}) {
   return (
     <Link
       to={to}
@@ -33,6 +39,7 @@ export function RootLayout() {
           <nav className="flex gap-1">
             <NavLink to="/queue">{t.nav.queue}</NavLink>
             <NavLink to="/canonical">{t.nav.canonical}</NavLink>
+            <NavLink to="/decisions">{t.nav.decisions}</NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <button
