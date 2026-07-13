@@ -119,6 +119,19 @@ async def get_link(session: AsyncSession, supplier_product_id: str) -> ProductLi
     return await session.get(ProductLinkRow, supplier_product_id)
 
 
+async def links_for_canonical(
+    session: AsyncSession, canonical_product_id: str
+) -> Sequence[ProductLinkRow]:
+    """Every product link pointing at a canonical (used when merging two canonicals)."""
+    stmt = select(ProductLinkRow).where(ProductLinkRow.canonical_product_id == canonical_product_id)
+    return (await session.execute(stmt)).scalars().all()
+
+
+async def delete_canonical(session: AsyncSession, row: CanonicalProductRow) -> None:
+    """Remove a canonical product (e.g. the source side after a merge)."""
+    await session.delete(row)
+
+
 async def list_pending_links(
     session: AsyncSession, *, cursor: str | None = None, limit: int = 50
 ) -> tuple[Sequence[ProductLinkRow], str | None]:

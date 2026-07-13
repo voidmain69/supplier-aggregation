@@ -159,6 +159,86 @@
         ]
       }
     },
+    "/v1/canonical-products/{canonical_product_id}/merge": {
+      "post": {
+        "tags": [
+          "canonical-products"
+        ],
+        "summary": "Merge one canonical product into another",
+        "description": "Fold the source canonical into this (target) one: every supplier-product link on the source is repointed to the target, then the source is removed. Use it when two canonical products are actually the same. Emits matching.link.confirmed for each already-linked supplier product so the catalog rebuilds against the target.",
+        "operationId": "mergeCanonicalProducts",
+        "parameters": [
+          {
+            "name": "canonical_product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Target canonical id (ULID) to keep.",
+              "title": "Canonical Product Id"
+            },
+            "description": "Target canonical id (ULID) to keep."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeCanonicalIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergeResultOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Target or source canonical does not exist.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Source and target are the same product.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/curation/queue": {
       "get": {
         "tags": [
@@ -369,6 +449,86 @@
           }
         ]
       }
+    },
+    "/v1/curation/links/{supplier_product_id}/create-new": {
+      "post": {
+        "tags": [
+          "curation"
+        ],
+        "summary": "Create a new canonical from a curation item",
+        "description": "Reject the suggested candidate and instead create a brand-new canonical product from this supplier product, linking it confirmed. Use it when the suggestion is wrong and no existing canonical fits. Emits matching.link.confirmed for the new canonical.",
+        "operationId": "createNewCanonical",
+        "parameters": [
+          {
+            "name": "supplier_product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Supplier product id (ULID).",
+              "title": "Supplier Product Id"
+            },
+            "description": "Supplier product id (ULID)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCanonicalIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkDecisionOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such curation item.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Item already decided.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -417,6 +577,46 @@
         ],
         "title": "CanonicalProductOut",
         "description": "A canonical (platform) product that aggregates supplier products."
+      },
+      "CreateCanonicalIn": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Title",
+            "description": "Canonical title for the new product, e.g. 'Acme Widget Pro 2000'."
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand",
+            "description": "Brand/vendor name, if known."
+          },
+          "gtin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gtin",
+            "description": "Normalized GTIN-14 to assign, if the product carries one. Must not already belong to another canonical (that would be a match, not a new product)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "CreateCanonicalIn",
+        "description": "Fields for a brand-new canonical product created from a curation item.\n\nUse this when the suggested candidate is wrong AND the supplier product is a genuinely new\nproduct (not yet in the catalog). Prefill from the supplier product; the operator may edit."
       },
       "CurationItemOut": {
         "properties": {
@@ -496,6 +696,48 @@
         ],
         "title": "LinkDecisionOut",
         "description": "Result of confirming or rejecting a curation item."
+      },
+      "MergeCanonicalIn": {
+        "properties": {
+          "source_canonical_product_id": {
+            "type": "string",
+            "title": "Source Canonical Product Id",
+            "description": "The canonical to merge FROM; it is removed and its links move to the target."
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_canonical_product_id"
+        ],
+        "title": "MergeCanonicalIn",
+        "description": "Which canonical to fold into the target (all its links move to the target)."
+      },
+      "MergeResultOut": {
+        "properties": {
+          "target_canonical_product_id": {
+            "type": "string",
+            "title": "Target Canonical Product Id",
+            "description": "The surviving canonical product."
+          },
+          "source_canonical_product_id": {
+            "type": "string",
+            "title": "Source Canonical Product Id",
+            "description": "The merged-away canonical (now removed)."
+          },
+          "moved_links": {
+            "type": "integer",
+            "title": "Moved Links",
+            "description": "How many supplier-product links were repointed."
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_canonical_product_id",
+          "source_canonical_product_id",
+          "moved_links"
+        ],
+        "title": "MergeResultOut",
+        "description": "Outcome of merging one canonical product into another."
       },
       "Page_CanonicalProductOut_": {
         "properties": {

@@ -122,3 +122,72 @@ async def test_confirm__without_header_falls_back_to_generic_operator(
         link = await get_link(session, _SPID)
     assert link is not None
     assert link.decided_by == "operator"
+
+
+async def test_create_new__links_a_fresh_confirmed_canonical(
+    client: httpx.AsyncClient,
+    sqlite_session_factory: SessionFactory,
+    discovered_event: Callable[..., dict[str, Any]],
+) -> None:
+    await _stage_pending(sqlite_session_factory, discovered_event)
+    async with sqlite_session_factory() as session:
+        draft_canonical_id = (await get_link(session, _SPID)).canonical_product_id  # type: ignore[union-attr]
+
+    async with client:
+        resp = await client.post(
+            f"/v1/curation/links/{_SPID}/create-new",
+            json={"title": "Acme Widget Pro", "brand": "Acme", "gtin": None},
+            headers={"X-Operator-Id": "user:alice"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "confirmed"
+    assert body["canonical_product_id"] != draft_canonical_id  # a brand-new canonical
+
+    async with sqlite_session_factory() as session:
+        link = await get_link(session, _SPID)
+        assert link is not None
+        assert link.method == "manual"
+        assert link.decided_by == "user:alice"
+        canonical = await session.get(CanonicalProductRow, link.canonical_product_id)
+    assert canonical is not None
+    assert canonical.title == "Acme Widget Pro"
+    assert canonical.status == "confirmed"
+
+    publisher = InMemoryPublisher()
+    assert await OutboxRelay(sqlite_session_factory, publisher).drain() == 1  # confirmation emitted
+
+
+async def test_create_new__rejects_a_gtin_already_on_another_canonical(
+    client: httpx.AsyncClient,
+    sqlite_session_factory: SessionFactory,
+    discovered_event: Callable[..., dict[str, Any]],
+) -> None:
+    # A GTIN product auto-creates a canonical carrying that GTIN.
+    other = "01J0000000000000000PROD2"
+    await build_discovered_handler(sqlite_session_factory)(
+        discovered_event(supplier_product_id=other, gtin="04711387781609", name="Has a GTIN")
+    )
+    await _stage_pending(sqlite_session_factory, discovered_event)
+
+    async with client:
+        resp = await client.post(
+            f"/v1/curation/links/{_SPID}/create-new",
+            json={"title": "Dup", "gtin": "04711387781609"},
+        )
+    assert resp.status_code == 409
+    assert resp.headers["content-type"].startswith("application/problem+json")
+
+
+async def test_create_new__409_when_already_confirmed(
+    client: httpx.AsyncClient,
+    sqlite_session_factory: SessionFactory,
+    discovered_event: Callable[..., dict[str, Any]],
+) -> None:
+    await _stage_pending(sqlite_session_factory, discovered_event)
+    async with client:
+        await client.post(f"/v1/curation/links/{_SPID}/confirm")
+        resp = await client.post(
+            f"/v1/curation/links/{_SPID}/create-new", json={"title": "Too late"}
+        )
+    assert resp.status_code == 409

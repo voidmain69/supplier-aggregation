@@ -56,3 +56,40 @@ class LinkDecisionOut(BaseModel):
     supplier_product_id: str = Field(description="The supplier product that was decided.")
     canonical_product_id: str = Field(description="The canonical product it maps to.")
     status: str = Field(description="New link status: 'confirmed' or 'rejected'.")
+
+
+class CreateCanonicalIn(BaseModel):
+    """Fields for a brand-new canonical product created from a curation item.
+
+    Use this when the suggested candidate is wrong AND the supplier product is a genuinely new
+    product (not yet in the catalog). Prefill from the supplier product; the operator may edit.
+    """
+
+    title: str = Field(
+        min_length=1,
+        description="Canonical title for the new product, e.g. 'Acme Widget Pro 2000'.",
+    )
+    brand: str | None = Field(default=None, description="Brand/vendor name, if known.")
+    gtin: str | None = Field(
+        default=None,
+        description=(
+            "Normalized GTIN-14 to assign, if the product carries one. Must not already belong "
+            "to another canonical (that would be a match, not a new product)."
+        ),
+    )
+
+
+class MergeCanonicalIn(BaseModel):
+    """Which canonical to fold into the target (all its links move to the target)."""
+
+    source_canonical_product_id: str = Field(
+        description="The canonical to merge FROM; it is removed and its links move to the target."
+    )
+
+
+class MergeResultOut(BaseModel):
+    """Outcome of merging one canonical product into another."""
+
+    target_canonical_product_id: str = Field(description="The surviving canonical product.")
+    source_canonical_product_id: str = Field(description="The merged-away canonical (now removed).")
+    moved_links: int = Field(description="How many supplier-product links were repointed.")
