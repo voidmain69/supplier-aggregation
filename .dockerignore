@@ -12,7 +12,10 @@
 htmlcov
 .coverage
 infra/.data
-node_modules
+# Match at any depth: the frontend's node_modules/dist live under apps/curation-ui/ and must not
+# leak into the build context (host pnpm symlinks break inside the image).
+**/node_modules
+**/dist
 docs
 **/tests
 scratchpad

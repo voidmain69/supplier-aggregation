@@ -61,7 +61,9 @@ services:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: sa
+      # MinIO requires the root user to be >= 3 chars (and password >= 8). Keep in sync with
+      # connector-brain's s3_access_key / s3_secret_key defaults.
+      MINIO_ROOT_USER: saminio
       MINIO_ROOT_PASSWORD: sa_dev_only
     ports: ["9000:9000", "9001:9001"]
     volumes:
@@ -427,9 +429,11 @@ services:
       API_GATEWAY_OTLP_ENDPOINT: http://otel-collector:4317
       # Browser origins allowed to call the gateway (curation-ui: static host + Vite dev server).
       API_GATEWAY_CORS_ALLOW_ORIGINS: '["http://localhost:8088","http://localhost:5173"]'
-      # Add principals as JSON (token SHA-256 hash -> {subject, scopes}):
-      # API_GATEWAY_PRINCIPALS: '{"<sha256>": {"subject": "agent:demo", "scopes": ["catalog:read"]}}'
-    ports: ["8080:8000"]
+      # Principals (token SHA-256 hash -> {subject, scopes}) as JSON; empty by default. Set via a
+      # local .env (see .env.example) so login works without editing this file.
+      API_GATEWAY_PRINCIPALS: "${API_GATEWAY_PRINCIPALS:-{}}"
+    # Host 8080 is reserved on some machines (e.g. Windows winnat); override with API_GATEWAY_PORT.
+    ports: ["${API_GATEWAY_PORT:-8080}:8000"]
     depends_on: [catalog, offer, price-history, matching, sync-orchestrator]
 
   mcp-gateway:

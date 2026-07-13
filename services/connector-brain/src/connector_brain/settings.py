@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     s3_bucket: str = "sa-raw"
     """Bucket that holds raw supplier payloads (lifecycle-managed, see infrastructure standard)."""
 
-    s3_access_key: str = "sa"
+    s3_access_key: str = "saminio"  # matches infra/compose.yaml MINIO_ROOT_USER
     s3_secret_key: str = "sa_dev_only"  # noqa: S105 -- dev MinIO default, overridden by env in prod
     s3_region: str = "us-east-1"
 
