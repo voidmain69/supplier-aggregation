@@ -13,10 +13,10 @@
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
-import { confirmLink, rejectLink } from '@/shared/api/endpoints';
+import { confirmLink, createNewCanonical, rejectLink } from '@/shared/api/endpoints';
 import { ApiError } from '@/shared/api/http';
 import { queryKeys } from '@/shared/api/query-keys';
-import type { CurationItem, Page } from '@/shared/api/types';
+import type { CreateCanonicalInput, CurationItem, Page } from '@/shared/api/types';
 import { t } from '@/shared/config/i18n';
 import { toast } from '@/shared/ui/toast';
 
@@ -62,6 +62,32 @@ export function useDecide() {
             ? (error.problem?.detail ?? error.message)
             : t.common.errorTitle;
         toast.error(message);
+      }
+    },
+    [qc],
+  );
+}
+
+/**
+ * Create a new canonical from a curation item. Like a decision, it resolves the queue entry, so
+ * it optimistically drops the item and settles in the background. Throws on failure so the caller
+ * (a form dialog) can stay open and surface the problem detail.
+ */
+export function useCreateNew() {
+  const qc = useQueryClient();
+
+  return useCallback(
+    async (id: string, body: CreateCanonicalInput): Promise<void> => {
+      const key = queryKeys.curationQueue();
+      await qc.cancelQueries({ queryKey: key });
+      const prev = qc.getQueryData<QueueData>(key);
+      qc.setQueryData<QueueData>(key, (data) => dropItem(data, id));
+      try {
+        await createNewCanonical(id, body);
+        toast.success(t.review.created);
+      } catch (error) {
+        qc.setQueryData<QueueData>(key, prev); // undo optimistic removal; the dialog stays open
+        throw error;
       }
     },
     [qc],

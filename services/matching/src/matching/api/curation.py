@@ -13,9 +13,15 @@ from fastapi import APIRouter, Depends, Header, Path, Query
 from sa_persistence.outbox import enqueue
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from matching.adapters.repository import get_canonical, get_link, list_pending_links
+from matching.adapters.repository import (
+    create_canonical,
+    find_canonical_by_gtin,
+    get_canonical,
+    get_link,
+    list_pending_links,
+)
 from matching.api.deps import get_session
-from matching.api.schemas import CurationItemOut, LinkDecisionOut, Problem
+from matching.api.schemas import CreateCanonicalIn, CurationItemOut, LinkDecisionOut, Problem
 from matching.events.mapping import link_confirmed_record
 from sa_core.errors import ConflictError, NotFoundError
 from sa_core.pagination import Page
@@ -160,6 +166,70 @@ async def reject_link(
         link.decided_by = operator
         link.decided_at = utc_now()
         await session.commit()
+    return LinkDecisionOut(
+        supplier_product_id=link.supplier_product_id,
+        canonical_product_id=link.canonical_product_id,
+        status=link.status,
+    )
+
+
+@router.post(
+    "/links/{supplier_product_id}/create-new",
+    operation_id="createNewCanonical",
+    summary="Create a new canonical from a curation item",
+    description=(
+        "Reject the suggested candidate and instead create a brand-new canonical product from "
+        "this supplier product, linking it confirmed. Use it when the suggestion is wrong and no "
+        "existing canonical fits. Emits matching.link.confirmed for the new canonical."
+    ),
+    response_model=LinkDecisionOut,
+    responses=_ERRORS,
+)
+async def create_new_canonical(
+    supplier_product_id: Annotated[str, Path(description="Supplier product id (ULID).")],
+    body: CreateCanonicalIn,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    x_operator_id: Annotated[
+        str | None, Header(alias=_OPERATOR_HEADER, include_in_schema=False)
+    ] = None,
+) -> LinkDecisionOut:
+    operator = x_operator_id or _OPERATOR_FALLBACK
+    link = await get_link(session, supplier_product_id)
+    if link is None:
+        raise NotFoundError(
+            f"No curation item for supplier product {supplier_product_id}.",
+            instance=f"/v1/curation/links/{supplier_product_id}/create-new",
+        )
+    if link.status == "confirmed":
+        raise ConflictError("This link is already confirmed; it cannot be re-created.")
+    if body.gtin is not None and await find_canonical_by_gtin(session, body.gtin) is not None:
+        raise ConflictError(
+            f"A canonical product already carries GTIN {body.gtin}; confirm that match instead "
+            "of creating a new product."
+        )
+
+    canonical = create_canonical(
+        session, gtin=body.gtin, brand=body.brand, title=body.title, status="confirmed"
+    )
+    link.canonical_product_id = canonical.canonical_product_id
+    link.method = "manual"
+    link.confidence = 1.0
+    link.status = "confirmed"
+    link.decided_by = operator
+    link.decided_at = utc_now()
+    enqueue(
+        session,
+        link_confirmed_record(
+            link_id=link.link_id,
+            supplier_product_id=link.supplier_product_id,
+            canonical_product_id=canonical.canonical_product_id,
+            method="manual",
+            confidence=1.0,
+            decided_by=operator,
+            decided_at=link.decided_at,
+        ),
+    )
+    await session.commit()
     return LinkDecisionOut(
         supplier_product_id=link.supplier_product_id,
         canonical_product_id=link.canonical_product_id,

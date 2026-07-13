@@ -83,6 +83,17 @@ describe('http', () => {
     expect(calls).toHaveLength(2);
   });
 
+  it('sends a JSON body with a content-type on POST', async () => {
+    const calls = mockFetchOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+
+    await http.post('/v1/curation/links/1/create-new', { body: { title: 'Acme' } });
+
+    const init = calls[0]?.init;
+    const headers = init?.headers as Record<string, string>;
+    expect(headers['Content-Type']).toBe('application/json');
+    expect(init?.body).toBe(JSON.stringify({ title: 'Acme' }));
+  });
+
   it('stamps an Idempotency-Key on POST', async () => {
     const calls = mockFetchOnce(
       new Response(

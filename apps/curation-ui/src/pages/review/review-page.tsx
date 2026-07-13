@@ -1,4 +1,5 @@
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
+import { useState } from 'react';
 
 import { AttributeDiffTable } from '@/entities/attribute-diff/attribute-diff-table';
 import { CanonicalProductCard } from '@/entities/canonical-product/canonical-product-card';
@@ -11,6 +12,7 @@ import {
   useSupplierProductsByCanonical,
 } from '@/entities/supplier-product/use-supplier-product';
 import { OffersPanel } from '@/features/commercial-context/offers-panel';
+import { CreateNewDialog } from '@/features/curation-decision/create-new-dialog';
 import { useDecide, type Decision } from '@/features/curation-decision/use-decision';
 import type { CurationItem } from '@/shared/api/types';
 import { t } from '@/shared/config/i18n';
@@ -39,6 +41,7 @@ export function ReviewPage() {
   const canonical = useCanonicalProduct(canonicalId, canonicalId !== '');
   const linked = useSupplierProductsByCanonical(canonicalId, canonicalId !== '');
   const decide = useDecide();
+  const [createOpen, setCreateOpen] = useState(false);
 
   function goToItem(target: CurationItem | undefined): void {
     if (target) {
@@ -170,6 +173,14 @@ export function ReviewPage() {
             {t.review.reject} <Kbd>r</Kbd>
           </Button>
           <Button
+            variant="outline"
+            onClick={() => {
+              setCreateOpen(true);
+            }}
+          >
+            {t.review.createNew}
+          </Button>
+          <Button
             variant="ghost"
             onClick={() => {
               goToItem(nav.next);
@@ -182,6 +193,19 @@ export function ReviewPage() {
           </span>
         </div>
       </div>
+
+      <CreateNewDialog
+        open={createOpen}
+        supplierProductId={supplierProductId}
+        product={product.data}
+        onClose={() => {
+          setCreateOpen(false);
+        }}
+        onCreated={() => {
+          setCreateOpen(false);
+          goToItem(nav.next);
+        }}
+      />
     </div>
   );
 }

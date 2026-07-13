@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Path, Query, Response
 
 from api_gateway.adapters.downstream import Downstream
 from api_gateway.api.deps import get_downstream
-from api_gateway.api.schemas import Problem
+from api_gateway.api.schemas import CreateCanonicalIn, MergeCanonicalIn, Problem
 from api_gateway.api.security import require
 from api_gateway.domain.auth import Principal, Scopes
 
@@ -268,6 +268,33 @@ async def get_canonical_product(
     return _relay(resp)
 
 
+@router.post(
+    "/canonical-products/{canonical_product_id}/merge",
+    operation_id="mergeCanonicalProducts",
+    summary="Merge one canonical product into another",
+    description=(
+        "Fold a source canonical into this (target) one: its supplier-product links move to the "
+        "target and the source is removed. Use it to deduplicate canonical products. Requires "
+        "scope `matching:curate`."
+    ),
+    responses={**_GATEWAY_ERRORS, **_NOT_FOUND},
+)
+async def merge_canonical_products(
+    canonical_product_id: Annotated[str, Path(description="Target canonical id (ULID) to keep.")],
+    body: MergeCanonicalIn,
+    principal: Annotated[Principal, Depends(require(Scopes.MATCHING_CURATE))],
+    downstream: Annotated[Downstream, Depends(get_downstream)],
+) -> Response:
+    resp = await downstream.request(
+        "matching",
+        "POST",
+        f"/v1/canonical-products/{canonical_product_id}/merge",
+        json=body.model_dump(),
+        headers={"X-Operator-Id": principal.subject},
+    )
+    return _relay(resp)
+
+
 # --------------------------------------------------------------------------- curation
 @router.get(
     "/curation/queue",
@@ -336,6 +363,33 @@ async def reject_curation_link(
         "matching",
         "POST",
         f"/v1/curation/links/{supplier_product_id}/reject",
+        headers={"X-Operator-Id": principal.subject},
+    )
+    return _relay(resp)
+
+
+@router.post(
+    "/curation/links/{supplier_product_id}/create-new",
+    operation_id="createNewCanonical",
+    summary="Create a new canonical from a curation item",
+    description=(
+        "Reject the suggested candidate and create a brand-new canonical product from this "
+        "supplier product, linking it confirmed. Use it when the suggestion is wrong and no "
+        "existing canonical fits. Requires scope `matching:curate`."
+    ),
+    responses={**_GATEWAY_ERRORS, **_NOT_FOUND},
+)
+async def create_new_canonical(
+    supplier_product_id: Annotated[str, Path(description="Supplier product id (ULID).")],
+    body: CreateCanonicalIn,
+    principal: Annotated[Principal, Depends(require(Scopes.MATCHING_CURATE))],
+    downstream: Annotated[Downstream, Depends(get_downstream)],
+) -> Response:
+    resp = await downstream.request(
+        "matching",
+        "POST",
+        f"/v1/curation/links/{supplier_product_id}/create-new",
+        json=body.model_dump(),
         headers={"X-Operator-Id": principal.subject},
     )
     return _relay(resp)

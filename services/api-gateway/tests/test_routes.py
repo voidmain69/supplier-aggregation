@@ -104,6 +104,49 @@ async def test_get_canonical_product__forwards_to_matching(
     assert str(sent.url) == "http://matching.test/v1/canonical-products/01JCANON"
 
 
+async def test_create_new__forwards_body_and_operator_id(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    async with client(S.MATCHING_CURATE) as c:
+        resp = await c.post(
+            "/v1/curation/links/01JSP/create-new",
+            json={"title": "Acme Widget", "brand": "Acme", "gtin": None},
+            headers=auth,
+        )
+    assert resp.status_code == 200
+    sent = backend.requests[-1]
+    assert sent.method == "POST"
+    assert str(sent.url) == "http://matching.test/v1/curation/links/01JSP/create-new"
+    assert sent.headers["x-operator-id"] == "agent:test"
+    assert sent.read().decode().find("Acme Widget") != -1
+
+
+async def test_create_new__requires_matching_curate_scope(
+    client: ClientFactory, auth: Headers
+) -> None:
+    async with client(S.CATALOG_READ) as c:
+        resp = await c.post(
+            "/v1/curation/links/01JSP/create-new", json={"title": "x"}, headers=auth
+        )
+    assert resp.status_code == 403
+
+
+async def test_merge__forwards_body_and_operator_id(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    async with client(S.MATCHING_CURATE) as c:
+        await c.post(
+            "/v1/canonical-products/01JTARGET/merge",
+            json={"source_canonical_product_id": "01JSOURCE"},
+            headers=auth,
+        )
+    sent = backend.requests[-1]
+    assert sent.method == "POST"
+    assert str(sent.url) == "http://matching.test/v1/canonical-products/01JTARGET/merge"
+    assert sent.headers["x-operator-id"] == "agent:test"
+    assert sent.read().decode().find("01JSOURCE") != -1
+
+
 async def test_downstream_404__is_relayed_as_problem_json(
     client: ClientFactory, backend: Any, auth: Headers
 ) -> None:

@@ -45,6 +45,24 @@
       "safety": "mutating",
       "cost_class": "cheap",
       "typical_latency_ms": 80
+    },
+    {
+      "name": "create_new_canonical",
+      "operation_id": "createNewCanonical",
+      "when_to_use": "Operator declares a curation item a brand-new canonical product and links it confirmed.",
+      "when_not_to_use": "The suggested candidate is correct (confirm_link) or an existing canonical fits.",
+      "safety": "mutating",
+      "cost_class": "cheap",
+      "typical_latency_ms": 90
+    },
+    {
+      "name": "merge_canonical_products",
+      "operation_id": "mergeCanonicalProducts",
+      "when_to_use": "Operator merges a duplicate canonical into another; all its links move to the target.",
+      "when_not_to_use": "The two products are genuinely different; a single supplier link is wrong (reject_link).",
+      "safety": "mutating",
+      "cost_class": "cheap",
+      "typical_latency_ms": 120
     }
   ]
 }
