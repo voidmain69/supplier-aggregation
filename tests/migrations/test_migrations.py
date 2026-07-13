@@ -66,6 +66,12 @@ SERVICES = [
         "syncorch",
         {"sync_schedule_state", "outbox"},
     ),
+    ServiceMigrations(
+        "search",
+        "SEARCH_DB_DSN",
+        "search",
+        {"search_document", "search_processed_events"},
+    ),
 ]
 
 
