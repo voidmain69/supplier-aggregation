@@ -131,6 +131,34 @@ async def test_create_new__requires_matching_curate_scope(
     assert resp.status_code == 403
 
 
+async def test_sync_accounts__forwards_to_sync_orchestrator(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    backend.json = [{"account_id": "01J", "status": "ok"}]
+    async with client(S.SYNC_READ) as c:
+        resp = await c.get("/v1/sync/accounts", headers=auth)
+    assert resp.status_code == 200
+    assert str(backend.requests[-1].url) == "http://sync-orchestrator.test/v1/sync/accounts"
+
+
+async def test_sync_accounts__requires_sync_read_scope(
+    client: ClientFactory, auth: Headers
+) -> None:
+    async with client(S.CATALOG_READ) as c:
+        resp = await c.get("/v1/sync/accounts", headers=auth)
+    assert resp.status_code == 403
+
+
+async def test_trigger_sync__forwards_post(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    async with client(S.SYNC_READ) as c:
+        await c.post("/v1/sync/accounts/01JACCT/trigger", headers=auth)
+    sent = backend.requests[-1]
+    assert sent.method == "POST"
+    assert str(sent.url) == "http://sync-orchestrator.test/v1/sync/accounts/01JACCT/trigger"
+
+
 async def test_stats__forwards_to_matching(
     client: ClientFactory, backend: Any, auth: Headers
 ) -> None:

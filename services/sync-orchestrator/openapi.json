@@ -1,0 +1,333 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "sync-orchestrator",
+    "description": "Schedules supplier syncs. On a per-account interval it emits sync.job.requested so the owning connector fetches fresh catalog/prices — the source of the ingestion pipeline. Also exposes sync status + a manual trigger for the operator dashboard.",
+    "contact": {
+      "name": "Supplier Aggregation Platform",
+      "email": "Info_DIT@erc.ua"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/sync/accounts": {
+      "get": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "List sync status per account",
+        "description": "Every scheduled account and its sync health: last requested, next due and a derived status (never / ok / overdue). Operational fields only — no credentials or financial terms. Use it to monitor ingestion freshness.",
+        "operationId": "listSyncAccounts",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SyncAccountOut"
+                  },
+                  "type": "array",
+                  "title": "Response Listsyncaccounts"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/sync/accounts/{account_id}/trigger": {
+      "post": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Request a sync now",
+        "description": "Manually request a sync for an account — emits sync.job.requested (the same event the scheduler emits) so the account's connector fetches fresh data immediately. Returns the job id.",
+        "operationId": "triggerSync",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account id (ULID) to sync now.",
+              "title": "Account Id"
+            },
+            "description": "Account id (ULID) to sync now."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerResultOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No scheduled account with that id.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Problem": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Stable URI identifying the error type."
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Short, human-readable summary of the error type."
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "HTTP status code."
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "Human/LLM-readable explanation with a next step."
+          },
+          "instance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instance",
+            "description": "URI of the specific occurrence."
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "Trace id to correlate with telemetry."
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail"
+        ],
+        "title": "Problem",
+        "description": "RFC 9457 problem+json error body (returned on 4xx/5xx)."
+      },
+      "SyncAccountOut": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "title": "Account Id",
+            "description": "Account ULID being synced."
+          },
+          "supplier_code": {
+            "type": "string",
+            "title": "Supplier Code",
+            "description": "Supplier the account belongs to, e.g. 'brain'."
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "What is synced: products | offers | all."
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "description": "Sync mode: full | delta."
+          },
+          "interval_seconds": {
+            "type": "number",
+            "title": "Interval Seconds",
+            "description": "Minimum seconds between scheduled syncs."
+          },
+          "last_requested_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Requested At",
+            "description": "When a sync was last requested for this account (ISO-8601 UTC)."
+          },
+          "next_due_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Due At",
+            "description": "When the next scheduled sync is due (ISO-8601 UTC)."
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Derived health: 'never' | 'ok' | 'overdue'."
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "supplier_code",
+          "kind",
+          "mode",
+          "interval_seconds",
+          "status"
+        ],
+        "title": "SyncAccountOut",
+        "description": "Sync status of one scheduled account (operational fields only)."
+      },
+      "TriggerResultOut": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "title": "Account Id",
+            "description": "Account the sync was requested for."
+          },
+          "sync_job_id": {
+            "type": "string",
+            "title": "Sync Job Id",
+            "description": "ULID of the emitted sync job."
+          },
+          "requested_at": {
+            "type": "string",
+            "title": "Requested At",
+            "description": "When the sync was requested (ISO-8601 UTC)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "sync_job_id",
+          "requested_at"
+        ],
+        "title": "TriggerResultOut",
+        "description": "Outcome of a manual sync request."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Service API key or OIDC token, issued/validated by the API gateway."
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This service (behind the API gateway)."
+    }
+  ],
+  "tags": [
+    {
+      "name": "sync"
+    }
+  ]
+}

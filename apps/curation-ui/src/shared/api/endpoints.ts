@@ -17,6 +17,8 @@ import type {
   Page,
   PricePoint,
   SupplierProduct,
+  SyncAccount,
+  TriggerResult,
 } from './types';
 
 export interface PageParams {
@@ -69,6 +71,15 @@ export function mergeCanonical(
   return http.post(`/v1/canonical-products/${encodeURIComponent(targetCanonicalId)}/merge`, {
     body: { source_canonical_product_id: sourceCanonicalId },
   });
+}
+
+// ----------------------------------------------------------------------------- sync
+export function getSyncAccounts(): Promise<SyncAccount[]> {
+  return http.get('/v1/sync/accounts');
+}
+
+export function triggerSync(accountId: string): Promise<TriggerResult> {
+  return http.post(`/v1/sync/accounts/${encodeURIComponent(accountId)}/trigger`);
 }
 
 // --------------------------------------------------------------------------- catalog

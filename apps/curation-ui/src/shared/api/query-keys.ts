@@ -14,4 +14,5 @@ export const queryKeys = {
   canonicalList: (gtin: string) => ['canonical-products', 'list', gtin] as const,
   productOffers: (supplierProductId: string) => ['offers', supplierProductId] as const,
   priceHistory: (offerId: string) => ['price-history', offerId] as const,
+  syncAccounts: () => ['sync', 'accounts'] as const,
 };

@@ -44,6 +44,7 @@ def create_app() -> FastAPI:
                     "offer": settings.offer_base_url,
                     "price_history": settings.price_history_base_url,
                     "matching": settings.matching_base_url,
+                    "sync_orchestrator": settings.sync_orchestrator_base_url,
                 },
             )
             yield
