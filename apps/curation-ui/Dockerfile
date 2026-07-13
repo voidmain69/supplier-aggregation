@@ -3,7 +3,10 @@
 # The gateway base URL is baked at build time (Vite), so the browser talks to the
 # host-published gateway port. Override with --build-arg VITE_API_BASE_URL=...
 FROM node:22-alpine AS build
-RUN corepack enable
+# Pin pnpm 9 (matching CI's pnpm/action-setup version). Corepack otherwise fetches pnpm 11, whose
+# default minimumReleaseAge supply-chain policy rejects recently-published (but pinned, CI-validated)
+# lockfile entries and breaks the image build.
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app
 COPY apps/curation-ui/package.json apps/curation-ui/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile

@@ -20,6 +20,9 @@ dist/
 !.env.example
 *.dec.yaml
 
+# Local docker-compose override (per-machine tweaks; not shared)
+infra/compose.override.yaml
+
 # IDE / OS
 .idea/
 .vscode/
