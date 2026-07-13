@@ -44,3 +44,19 @@ class OfferIdentity(Base):
     last_price: Mapped[str] = mapped_column(String(32))
     last_currency: Mapped[str] = mapped_column(String(3))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class SyncWatermark(Base):
+    """Last successful sync time per account — the baseline for the next delta sync.
+
+    A delta sync fetches everything the supplier reports changed since this timestamp; it is
+    advanced to the moment a sync started (not finished), so changes made mid-sync are re-caught
+    next time rather than missed.
+    """
+
+    __tablename__ = "sync_watermark"
+
+    supplier_code: Mapped[str] = mapped_column(String(64), primary_key=True)
+    account_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    last_synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

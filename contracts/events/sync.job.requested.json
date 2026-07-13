@@ -19,6 +19,10 @@
       "enum": ["products", "offers", "all"],
       "description": "What to sync: the product catalog, this account's offers (prices/stock), or both"
     },
+    "mode": {
+      "enum": ["full", "delta"],
+      "description": "How much to sync: 'full' walks the whole catalog; 'delta' fetches only items changed since the connector's last watermark (falls back to full on the first run). Absent means 'full'."
+    },
     "sync_job_id": { "type": "string", "description": "ULID correlating every event produced by this sync run" },
     "requested_at": { "type": "string", "format": "date-time", "description": "When the sync was requested (UTC, ISO 8601)" }
   }

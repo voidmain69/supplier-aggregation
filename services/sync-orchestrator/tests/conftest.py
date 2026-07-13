@@ -22,6 +22,7 @@ def schedule() -> AccountSchedule:
         settlement_currency="USD",
         kind="all",
         interval_seconds=3600.0,
+        mode="delta",
     )
 
 

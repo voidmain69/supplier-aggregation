@@ -15,6 +15,11 @@ class Kind(Enum):
     all = "all"
 
 
+class Mode(Enum):
+    full = "full"
+    delta = "delta"
+
+
 class SyncJobRequested(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -45,6 +50,12 @@ class SyncJobRequested(BaseModel):
             description="What to sync: the product catalog, this account's offers (prices/stock), or both"
         ),
     ]
+    mode: Annotated[
+        Mode | None,
+        Field(
+            description="How much to sync: 'full' walks the whole catalog; 'delta' fetches only items changed since the connector's last watermark (falls back to full on the first run). Absent means 'full'."
+        ),
+    ] = None
     sync_job_id: Annotated[
         str, Field(description="ULID correlating every event produced by this sync run")
     ]

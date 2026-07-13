@@ -37,7 +37,7 @@ SERVICES = [
         "connector-brain",
         "CONNECTOR_BRAIN_DB_DSN",
         "brain",
-        {"outbox", "supplier_product_identity", "offer_identity"},
+        {"outbox", "supplier_product_identity", "offer_identity", "sync_watermark"},
     ),
     ServiceMigrations(
         "catalog",

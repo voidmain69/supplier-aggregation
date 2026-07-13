@@ -44,6 +44,7 @@ def build_sync_handler(
             account=account,
             sync_job_id=request.sync_job_id,
             kind=request.kind.value,
+            mode=request.mode.value if request.mode is not None else "full",
         )
 
     return handle

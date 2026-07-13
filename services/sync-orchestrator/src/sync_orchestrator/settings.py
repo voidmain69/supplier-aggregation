@@ -23,6 +23,10 @@ class AccountConfig(BaseModel):
     settlement_currency: str = Field(description="ISO-4217 code the account settles in.")
     kind: str = Field(default="all", description="products | offers | all.")
     interval_seconds: float = Field(default=3600.0, description="Minimum seconds between syncs.")
+    mode: str = Field(
+        default="full",
+        description="full | delta. delta fetches only items changed since the last sync.",
+    )
 
 
 class Settings(BaseSettings):
@@ -46,6 +50,7 @@ class Settings(BaseSettings):
                 settlement_currency=a.settlement_currency,
                 kind=a.kind,
                 interval_seconds=a.interval_seconds,
+                mode=a.mode,
             )
             for a in self.accounts
         ]

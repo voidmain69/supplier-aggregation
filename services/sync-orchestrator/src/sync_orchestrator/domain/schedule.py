@@ -21,6 +21,7 @@ class AccountSchedule:
     settlement_currency: str
     kind: str  # products | offers | all
     interval_seconds: float
+    mode: str = "full"  # full | delta — delta is the frequent cadence; full re-baselines
 
 
 def is_due(schedule: AccountSchedule, last_requested_at: datetime | None, now: datetime) -> bool:

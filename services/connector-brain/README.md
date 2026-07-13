@@ -23,10 +23,12 @@ canonical `RawProduct`/`RawOffer`/`RawCategory`/`RawStock`.
 ## Processes
 
 - `python -m connector_brain.sync_consumer` — consumes `sync.job.requested` (from the
-  sync-orchestrator) and drives a full account sync (`full_sync.run_account_sync`): fetch
-  categories → products → `sync_products`, and offers → `sync_offers`. Staged events go to
-  the outbox. **Needs a Vault-backed `CredentialResolver`** (`credentials_ref` → login/
-  password) — wire it in `sync_consumer._credential_resolver` before running in production.
+  sync-orchestrator) and drives an account sync (`full_sync.run_account_sync`). `mode=full`
+  walks the whole catalog (categories → products → `sync_products`, offers → `sync_offers`);
+  `mode=delta` fetches only items changed since the account's watermark (`modified_products`)
+  and re-stages those, falling back to full on the first sync. The watermark advances to the
+  sync start time. Staged events go to the outbox. **Needs a Vault-backed `CredentialResolver`**
+  (`credentials_ref` → login/password) — wire it in `sync_consumer._credential_resolver`.
 - `python -m connector_brain.relay` — ships the outbox to Kafka.
 
 ## Events
