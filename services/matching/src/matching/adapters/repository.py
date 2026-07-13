@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from matching.adapters.models import CanonicalProductRow, DecisionLogRow, ProductLinkRow
@@ -38,6 +39,35 @@ def record_decision(
     )
     session.add(row)
     return row
+
+
+@dataclass(frozen=True)
+class CurationStats:
+    """Aggregate counts for the operator dashboard."""
+
+    pending_reviews: int
+    canonical_products: int
+    decisions_by_action: dict[str, int]
+
+
+async def curation_stats(session: AsyncSession) -> CurationStats:
+    """Counts for the dashboard: queue depth, canonical total, and decisions per action."""
+    pending = await session.scalar(
+        select(func.count())
+        .select_from(ProductLinkRow)
+        .where(ProductLinkRow.status == "pending_review")
+    )
+    canonical = await session.scalar(select(func.count()).select_from(CanonicalProductRow))
+    action_rows = (
+        await session.execute(
+            select(DecisionLogRow.action, func.count()).group_by(DecisionLogRow.action)
+        )
+    ).all()
+    return CurationStats(
+        pending_reviews=pending or 0,
+        canonical_products=canonical or 0,
+        decisions_by_action={str(action): int(count) for action, count in action_rows},
+    )
 
 
 async def list_decisions(

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from matching.adapters.repository import (
     create_canonical,
+    curation_stats,
     find_canonical_by_gtin,
     get_canonical,
     get_link,
@@ -26,6 +27,7 @@ from matching.api.deps import get_session
 from matching.api.schemas import (
     CreateCanonicalIn,
     CurationItemOut,
+    CurationStatsOut,
     DecisionOut,
     LinkDecisionOut,
     Problem,
@@ -46,6 +48,28 @@ _ERRORS: dict[int | str, dict[str, object]] = {
     404: {"model": Problem, "description": "No such curation item."},
     409: {"model": Problem, "description": "Item already decided."},
 }
+
+
+@router.get(
+    "/stats",
+    operation_id="getCurationStats",
+    summary="Curation stats for the operator dashboard",
+    description=(
+        "Aggregate counts for the operator dashboard: queue depth (pending reviews), total "
+        "canonical products, and curation decisions broken down by action."
+    ),
+    response_model=CurationStatsOut,
+)
+async def get_stats(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CurationStatsOut:
+    stats = await curation_stats(session)
+    return CurationStatsOut(
+        pending_reviews=stats.pending_reviews,
+        canonical_products=stats.canonical_products,
+        decisions_total=sum(stats.decisions_by_action.values()),
+        decisions_by_action=stats.decisions_by_action,
+    )
 
 
 @router.get(

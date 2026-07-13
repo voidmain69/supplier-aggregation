@@ -95,6 +95,17 @@ class MergeResultOut(BaseModel):
     moved_links: int = Field(description="How many supplier-product links were repointed.")
 
 
+class CurationStatsOut(BaseModel):
+    """Aggregate counts for the operator dashboard."""
+
+    pending_reviews: int = Field(description="Links awaiting an operator decision (queue depth).")
+    canonical_products: int = Field(description="Total canonical (platform) products.")
+    decisions_total: int = Field(description="Total recorded curation decisions.")
+    decisions_by_action: dict[str, int] = Field(
+        description="Decision counts keyed by action (confirm / reject / create_new / merge)."
+    )
+
+
 class DecisionOut(BaseModel):
     """One immutable entry in the curation decision journal (audit log)."""
 

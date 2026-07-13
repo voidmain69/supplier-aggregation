@@ -131,6 +131,28 @@ async def test_create_new__requires_matching_curate_scope(
     assert resp.status_code == 403
 
 
+async def test_stats__forwards_to_matching(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    backend.json = {
+        "pending_reviews": 3,
+        "canonical_products": 10,
+        "decisions_total": 5,
+        "decisions_by_action": {"confirm": 4, "reject": 1},
+    }
+    async with client(S.MATCHING_CURATE) as c:
+        resp = await c.get("/v1/curation/stats", headers=auth)
+    assert resp.status_code == 200
+    assert resp.json()["pending_reviews"] == 3
+    assert str(backend.requests[-1].url) == "http://matching.test/v1/curation/stats"
+
+
+async def test_stats__requires_matching_curate_scope(client: ClientFactory, auth: Headers) -> None:
+    async with client(S.CATALOG_READ) as c:
+        resp = await c.get("/v1/curation/stats", headers=auth)
+    assert resp.status_code == 403
+
+
 async def test_decisions__forwards_to_matching_with_filter(
     client: ClientFactory, backend: Any, auth: Headers
 ) -> None:

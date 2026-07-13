@@ -297,6 +297,23 @@ async def merge_canonical_products(
 
 # --------------------------------------------------------------------------- curation
 @router.get(
+    "/curation/stats",
+    operation_id="getCurationStats",
+    summary="Curation stats for the operator dashboard",
+    description=(
+        "Aggregate counts for the operator dashboard: queue depth, total canonical products, and "
+        "decisions by action. Requires scope `matching:curate`."
+    ),
+    responses=_GATEWAY_ERRORS,
+)
+async def get_curation_stats(
+    _: Annotated[Principal, Depends(require(Scopes.MATCHING_CURATE))],
+    downstream: Annotated[Downstream, Depends(get_downstream)],
+) -> Response:
+    return _relay(await downstream.request("matching", "GET", "/v1/curation/stats"))
+
+
+@router.get(
     "/curation/queue",
     operation_id="getCurationQueue",
     summary="List the matching curation queue",

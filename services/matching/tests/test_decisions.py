@@ -68,6 +68,26 @@ async def test_create_new__records_create_new_decision(
     assert decision["note"] == "new canonical: Brand New Widget"
 
 
+async def test_stats__counts_pending_canonical_and_decisions(
+    client: httpx.AsyncClient,
+    sqlite_session_factory: SessionFactory,
+    discovered_event: Callable[..., dict[str, Any]],
+) -> None:
+    await _stage_pending(sqlite_session_factory, discovered_event)
+    async with client:
+        before = (await client.get("/v1/curation/stats")).json()
+        assert before["pending_reviews"] == 1
+        assert before["canonical_products"] == 1
+        assert before["decisions_total"] == 0
+
+        await client.post(f"/v1/curation/links/{_SPID}/confirm")
+        after = (await client.get("/v1/curation/stats")).json()
+
+    assert after["pending_reviews"] == 0
+    assert after["decisions_total"] == 1
+    assert after["decisions_by_action"]["confirm"] == 1
+
+
 async def test_decisions__filter_by_supplier_product(
     client: httpx.AsyncClient,
     sqlite_session_factory: SessionFactory,
