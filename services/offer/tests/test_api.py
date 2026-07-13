@@ -86,4 +86,30 @@ async def test_get_offer__found_and_missing(
         missing = await client.get("/v1/offers/does-not-exist")
     assert ok.status_code == 200
     assert ok.json()["price_uah"] == "9900.0000"
+    # No terms set: USD with no FX falls back to supplier price_uah, so effective == price_uah.
+    assert ok.json()["effective_price_uah"] == "9900.0000"
     assert missing.status_code == 404
+
+
+async def test_put_account_terms__reprices_and_changes_effective(
+    client: httpx.AsyncClient, sqlite_session_factory: SessionFactory
+) -> None:
+    await _seed(sqlite_session_factory, [("01J000000000000000OFFER01", "1000.0000")])
+    async with client:
+        resp = await client.put(
+            "/v1/accounts/01J0000000000000000ACCT1/terms",
+            json={"discount_pct": "0.25"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["offers_repriced"] == 1
+
+        offer = (await client.get("/v1/offers/01J000000000000000OFFER01")).json()
+    assert offer["effective_price_uah"] == "750.0000"  # 1000 * 0.75
+
+
+async def test_put_account_terms__rejects_invalid_discount(client: httpx.AsyncClient) -> None:
+    async with client:
+        resp = await client.put(
+            "/v1/accounts/01J0000000000000000ACCT1/terms", json={"discount_pct": "1.5"}
+        )
+    assert resp.status_code == 422

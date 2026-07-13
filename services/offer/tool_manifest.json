@@ -13,7 +13,7 @@
     {
       "name": "get_best_offer",
       "operation_id": "getBestOffer",
-      "when_to_use": "Get the cheapest offer (lowest UAH price) for a product across all suppliers and accounts.",
+      "when_to_use": "Get the cheapest offer (lowest effective UAH price, after each account's discount/FX/markup) for a product across all suppliers and accounts.",
       "when_not_to_use": "You need the full list of offers (use list_offers).",
       "safety": "read_only",
       "cost_class": "cheap",

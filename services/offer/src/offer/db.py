@@ -10,9 +10,16 @@ from __future__ import annotations
 from sa_persistence.db import create_all
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from offer.adapters.models import OfferRow, ProcessedEvent
+from offer.adapters.models import OfferRow, ProcessedEvent, SupplierAccountRow
 
 
 async def create_schema(engine: AsyncEngine) -> None:
-    """Create the offer's own tables (offer + offer_processed_events)."""
-    await create_all(engine, tables=[OfferRow.__table__, ProcessedEvent.__table__])
+    """Create the offer's own tables (offer + supplier_account + offer_processed_events)."""
+    await create_all(
+        engine,
+        tables=[
+            OfferRow.__table__,
+            SupplierAccountRow.__table__,
+            ProcessedEvent.__table__,
+        ],
+    )

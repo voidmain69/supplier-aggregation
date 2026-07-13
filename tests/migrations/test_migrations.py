@@ -45,7 +45,9 @@ SERVICES = [
         "catalog",
         {"supplier_product", "product_canonical_link", "processed_events"},
     ),
-    ServiceMigrations("offer", "OFFER_DB_DSN", "offer", {"offer", "offer_processed_events"}),
+    ServiceMigrations(
+        "offer", "OFFER_DB_DSN", "offer", {"offer", "supplier_account", "offer_processed_events"}
+    ),
     ServiceMigrations(
         "matching",
         "MATCHING_DB_DSN",
