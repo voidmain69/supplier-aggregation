@@ -81,6 +81,78 @@
       "safety": "mutating",
       "cost_class": "cheap",
       "typical_latency_ms": 150
+    },
+    {
+      "name": "list_canonical_products",
+      "operation_id": "listCanonicalProducts",
+      "when_to_use": "Browse or page through the confirmed canonical (platform) products, optionally filtered by GTIN.",
+      "when_not_to_use": "Fetching one canonical you already have the id for (use get_canonical_product), or searching by meaning (use the search service).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 120
+    },
+    {
+      "name": "get_canonical_product",
+      "operation_id": "getCanonicalProduct",
+      "when_to_use": "Fetch a single canonical product card by its canonical_product_id (ULID).",
+      "when_not_to_use": "Listing or searching without an id (use list_canonical_products).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 80
+    },
+    {
+      "name": "get_curation_stats",
+      "operation_id": "getCurationStats",
+      "when_to_use": "Get operator-dashboard counters: pending reviews, confirmed canonical products, and decisions broken down by action.",
+      "when_not_to_use": "You need the individual decisions (use get_curation_decisions) or the review queue (use get_curation_queue).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 120
+    },
+    {
+      "name": "get_curation_decisions",
+      "operation_id": "getCurationDecisions",
+      "when_to_use": "Page through the append-only decision journal (audit log of operator confirm/reject/create-new/merge actions).",
+      "when_not_to_use": "You only need aggregate counts (use get_curation_stats).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 130
+    },
+    {
+      "name": "create_new_canonical",
+      "operation_id": "createNewCanonical",
+      "when_to_use": "Create a brand-new canonical for a supplier product when no existing canonical fits (operator decision).",
+      "when_not_to_use": "An existing canonical is a correct match — confirm that link instead.",
+      "safety": "mutating",
+      "cost_class": "cheap",
+      "typical_latency_ms": 160
+    },
+    {
+      "name": "merge_canonical_products",
+      "operation_id": "mergeCanonicalProducts",
+      "when_to_use": "Merge one canonical product into another, re-linking all of its member supplier products (operator decision).",
+      "when_not_to_use": "The two canonicals are genuinely different products — merging is hard to reverse.",
+      "safety": "mutating",
+      "cost_class": "moderate",
+      "typical_latency_ms": 200
+    },
+    {
+      "name": "get_sync_accounts",
+      "operation_id": "getSyncAccounts",
+      "when_to_use": "List each supplier account's sync state (kind, mode, interval, last requested, next due, status) for monitoring.",
+      "when_not_to_use": "You want to force a sync now (use trigger_sync). Returns no credentials or financial terms.",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 120
+    },
+    {
+      "name": "trigger_sync",
+      "operation_id": "triggerSync",
+      "when_to_use": "Manually request an immediate sync for one account (stages sync.job.requested); use when data looks stale.",
+      "when_not_to_use": "The account is already syncing on schedule and its status is ok (check get_sync_accounts first).",
+      "safety": "mutating",
+      "cost_class": "cheap",
+      "typical_latency_ms": 150
     }
   ]
 }

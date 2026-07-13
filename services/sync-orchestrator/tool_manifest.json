@@ -1,4 +1,23 @@
 {
   "service": "sync-orchestrator",
-  "tools": []
+  "tools": [
+    {
+      "name": "list_sync_accounts",
+      "operation_id": "listSyncAccounts",
+      "when_to_use": "List each supplier account's sync state (kind, mode, interval, last requested, next due, status never/ok/overdue) for monitoring.",
+      "when_not_to_use": "You want to force a sync now (use trigger_sync). Operational fields only — no credentials or financial terms.",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 80
+    },
+    {
+      "name": "trigger_sync",
+      "operation_id": "triggerSync",
+      "when_to_use": "Manually request an immediate sync for one account (stages sync.job.requested); use when its data looks stale or overdue.",
+      "when_not_to_use": "The account is already syncing on schedule and its status is ok (check get_sync_accounts first).",
+      "safety": "mutating",
+      "cost_class": "cheap",
+      "typical_latency_ms": 120
+    }
+  ]
 }
