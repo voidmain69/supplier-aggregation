@@ -91,3 +91,34 @@ async def test_decision__404_for_unknown(client: httpx.AsyncClient) -> None:
     async with client:
         resp = await client.post("/v1/curation/links/nope/confirm")
     assert resp.status_code == 404
+
+
+async def test_confirm__records_operator_from_gateway_header(
+    client: httpx.AsyncClient,
+    sqlite_session_factory: SessionFactory,
+    discovered_event: Callable[..., dict[str, Any]],
+) -> None:
+    await _stage_pending(sqlite_session_factory, discovered_event)
+    async with client:
+        resp = await client.post(
+            f"/v1/curation/links/{_SPID}/confirm", headers={"X-Operator-Id": "user:alice"}
+        )
+        assert resp.status_code == 200
+    async with sqlite_session_factory() as session:
+        link = await get_link(session, _SPID)
+    assert link is not None
+    assert link.decided_by == "user:alice"  # audit reflects the real operator, not a placeholder
+
+
+async def test_confirm__without_header_falls_back_to_generic_operator(
+    client: httpx.AsyncClient,
+    sqlite_session_factory: SessionFactory,
+    discovered_event: Callable[..., dict[str, Any]],
+) -> None:
+    await _stage_pending(sqlite_session_factory, discovered_event)
+    async with client:
+        await client.post(f"/v1/curation/links/{_SPID}/confirm")
+    async with sqlite_session_factory() as session:
+        link = await get_link(session, _SPID)
+    assert link is not None
+    assert link.decided_by == "operator"
