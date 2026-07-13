@@ -164,6 +164,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/canonical-products/{canonical_product_id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge one canonical product into another
+         * @description Fold a source canonical into this (target) one: its supplier-product links move to the target and the source is removed. Use it to deduplicate canonical products. Requires scope `matching:curate`.
+         */
+        post: operations["mergeCanonicalProducts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/curation/queue": {
         parameters: {
             query?: never;
@@ -224,14 +244,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/curation/links/{supplier_product_id}/create-new": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a new canonical from a curation item
+         * @description Reject the suggested candidate and create a brand-new canonical product from this supplier product, linking it confirmed. Use it when the suggestion is wrong and no existing canonical fits. Requires scope `matching:curate`.
+         */
+        post: operations["createNewCanonical"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * CreateCanonicalIn
+         * @description Fields for a brand-new canonical product created from a curation item (mirrors matching).
+         */
+        CreateCanonicalIn: {
+            /**
+             * Title
+             * @description Canonical title for the new product; prefill from the supplier.
+             */
+            title: string;
+            /**
+             * Brand
+             * @description Brand/vendor name, if known.
+             */
+            brand?: string | null;
+            /**
+             * Gtin
+             * @description Normalized GTIN-14 to assign; must not already belong to another canonical.
+             */
+            gtin?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * MergeCanonicalIn
+         * @description Which canonical to fold into the target (mirrors matching).
+         */
+        MergeCanonicalIn: {
+            /**
+             * Source Canonical Product Id
+             * @description The canonical to merge FROM; it is removed and its links move to the target.
+             */
+            source_canonical_product_id: string;
         };
         /**
          * Problem
@@ -909,6 +981,87 @@ export interface operations {
             };
         };
     };
+    mergeCanonicalProducts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Target canonical id (ULID) to keep. */
+                canonical_product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeCanonicalIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Missing or invalid bearer token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The principal lacks the required scope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The requested resource does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Per-principal rate limit exceeded. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A downstream service was unreachable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getCurationQueue: {
         parameters: {
             query?: {
@@ -1067,6 +1220,87 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Missing or invalid bearer token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The principal lacks the required scope. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The requested resource does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Per-principal rate limit exceeded. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A downstream service was unreachable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createNewCanonical: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Supplier product id (ULID). */
+                supplier_product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCanonicalIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

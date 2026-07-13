@@ -7,8 +7,10 @@
 import { http } from './http';
 import type {
   CanonicalProduct,
+  CreateCanonicalInput,
   CurationItem,
   LinkDecision,
+  MergeResult,
   Offer,
   Page,
   PricePoint,
@@ -31,6 +33,24 @@ export function confirmLink(supplierProductId: string): Promise<LinkDecision> {
 
 export function rejectLink(supplierProductId: string): Promise<LinkDecision> {
   return http.post(`/v1/curation/links/${encodeURIComponent(supplierProductId)}/reject`);
+}
+
+export function createNewCanonical(
+  supplierProductId: string,
+  body: CreateCanonicalInput,
+): Promise<LinkDecision> {
+  return http.post(`/v1/curation/links/${encodeURIComponent(supplierProductId)}/create-new`, {
+    body,
+  });
+}
+
+export function mergeCanonical(
+  targetCanonicalId: string,
+  sourceCanonicalId: string,
+): Promise<MergeResult> {
+  return http.post(`/v1/canonical-products/${encodeURIComponent(targetCanonicalId)}/merge`, {
+    body: { source_canonical_product_id: sourceCanonicalId },
+  });
 }
 
 // --------------------------------------------------------------------------- catalog

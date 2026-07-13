@@ -1,8 +1,10 @@
 import { useNavigate, useParams } from '@tanstack/react-router';
+import { useState } from 'react';
 
 import { CanonicalProductCard } from '@/entities/canonical-product/canonical-product-card';
 import { useCanonicalProduct } from '@/entities/canonical-product/use-canonical-product';
 import { useSupplierProductsByCanonical } from '@/entities/supplier-product/use-supplier-product';
+import { MergeDialog } from '@/features/canonical-merge/merge-dialog';
 import { OffersPanel } from '@/features/commercial-context/offers-panel';
 import { t } from '@/shared/config/i18n';
 import { Button } from '@/shared/ui/button';
@@ -18,17 +20,32 @@ export function CanonicalDetailPage() {
   const navigate = useNavigate();
   const canonical = useCanonicalProduct(canonicalId);
   const linked = useSupplierProductsByCanonical(canonicalId);
+  const [mergeOpen, setMergeOpen] = useState(false);
 
   return (
     <div className="mx-auto max-w-4xl p-4">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="mb-4"
-        onClick={() => void navigate({ to: '/canonical' })}
-      >
-        ← {t.canonical.title}
-      </Button>
+      <div className="mb-4 flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={() => void navigate({ to: '/canonical' })}>
+          ← {t.canonical.title}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setMergeOpen(true);
+          }}
+        >
+          {t.canonical.merge}
+        </Button>
+      </div>
+
+      <MergeDialog
+        open={mergeOpen}
+        targetCanonicalId={canonicalId}
+        onClose={() => {
+          setMergeOpen(false);
+        }}
+      />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card>

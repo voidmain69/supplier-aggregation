@@ -43,6 +43,8 @@ export type QueryValue = string | number | boolean | null | undefined;
 
 export interface RequestOptions {
   params?: Record<string, QueryValue>;
+  /** JSON request body (mutations). Serialized and sent with an application/json content-type. */
+  body?: unknown;
   /** True for confirm/reject; adds an Idempotency-Key so the write is safely retryable. */
   idempotent?: boolean;
   signal?: AbortSignal;
@@ -83,7 +85,12 @@ async function once(method: string, url: string, opts: RequestOptions): Promise<
   const token = tokenStore.get();
   if (token) headers['Authorization'] = `Bearer ${token}`;
   if (opts.idempotent) headers['Idempotency-Key'] = ulid();
-  return fetch(url, { method, headers, signal: opts.signal });
+  let body: string | undefined;
+  if (opts.body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    body = JSON.stringify(opts.body);
+  }
+  return fetch(url, { method, headers, body, signal: opts.signal });
 }
 
 async function request<T>(method: string, path: string, opts: RequestOptions = {}): Promise<T> {

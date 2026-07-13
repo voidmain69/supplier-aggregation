@@ -61,6 +61,20 @@ export interface LinkDecision {
   status: string;
 }
 
+/** Body for creating a brand-new canonical from a curation item (mirrors CreateCanonicalIn). */
+export interface CreateCanonicalInput {
+  title: string;
+  brand: string | null;
+  gtin: string | null;
+}
+
+/** Outcome of merging one canonical into another (mirrors MergeResultOut). */
+export interface MergeResult {
+  target_canonical_product_id: string;
+  source_canonical_product_id: string;
+  moved_links: number;
+}
+
 /** A supplier-account offer (mirrors OfferOut). Money fields are decimal strings. */
 export interface Offer {
   offer_id: string;
