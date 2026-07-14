@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from typing import Any
 
@@ -80,6 +81,52 @@ async def test_reject_link__forwards_operator_id_from_principal(
         await c.post("/v1/curation/links/01JSP/reject", headers=auth)
     sent = backend.requests[-1]
     assert sent.headers["x-operator-id"] == "agent:test"
+
+
+async def test_price_daily__forwards_to_price_history(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    async with client(S.PRICES_READ) as c:
+        await c.get(
+            "/v1/offers/01JOFF/price-history/daily",
+            params={"from": "2026-07-01T00:00:00Z"},
+            headers=auth,
+        )
+    sent = backend.requests[-1]
+    assert str(sent.url).startswith("http://price-history.test/v1/price-history/daily")
+    assert sent.url.params["offer_id"] == "01JOFF"
+    assert sent.url.params["from"] == "2026-07-01T00:00:00Z"
+
+
+async def test_hybrid_search__forwards_body_to_search(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    async with client(S.SEARCH_READ) as c:
+        resp = await c.post(
+            "/v1/search/hybrid", json={"query": "asus b850 am5", "limit": 5}, headers=auth
+        )
+    assert resp.status_code == 200
+    sent = backend.requests[-1]
+    assert sent.method == "POST"
+    assert str(sent.url) == "http://search.test/v1/search/hybrid"
+    assert json.loads(sent.content) == {"query": "asus b850 am5", "limit": 5, "pool": 50}
+
+
+async def test_canonical_search__forwards_to_search(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    async with client(S.SEARCH_READ) as c:
+        await c.post("/v1/search/canonical", json={"query": "roland fp-30x"}, headers=auth)
+    sent = backend.requests[-1]
+    assert str(sent.url) == "http://search.test/v1/search/canonical"
+
+
+async def test_hybrid_search__requires_search_scope(
+    client: ClientFactory, backend: Any, auth: Headers
+) -> None:
+    async with client(S.CATALOG_READ) as c:  # wrong scope on purpose
+        resp = await c.post("/v1/search/hybrid", json={"query": "x"}, headers=auth)
+    assert resp.status_code == 403
 
 
 async def test_list_canonical_products__forwards_to_catalog(

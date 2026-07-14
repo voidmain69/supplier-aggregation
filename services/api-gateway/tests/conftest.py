@@ -22,6 +22,7 @@ _BASE_URLS = {
     "price_history": "http://price-history.test",
     "matching": "http://matching.test",
     "sync_orchestrator": "http://sync-orchestrator.test",
+    "search": "http://search.test",
 }
 
 

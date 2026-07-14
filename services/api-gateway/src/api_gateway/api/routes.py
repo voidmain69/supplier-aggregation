@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Path, Query, Response
 
 from api_gateway.adapters.downstream import Downstream
 from api_gateway.api.deps import get_downstream
-from api_gateway.api.schemas import CreateCanonicalIn, MergeCanonicalIn, Problem
+from api_gateway.api.schemas import CreateCanonicalIn, HybridSearchIn, MergeCanonicalIn, Problem
 from api_gateway.api.security import require
 from api_gateway.domain.auth import Principal, Scopes
 
@@ -211,6 +211,83 @@ async def get_offer_price_stats(
         "GET",
         "/v1/price-history/stats",
         params={"offer_id": offer_id, "from": from_, "to": to},
+    )
+    return _relay(resp)
+
+
+@router.get(
+    "/offers/{offer_id}/price-history/daily",
+    operation_id="getOfferPriceDaily",
+    summary="Daily price rollup for an offer",
+    description=(
+        "Per-day price buckets (count/min/max/avg/last in UAH) for one offer over a period. "
+        "Use it to chart price dynamics without fetching every raw price point. "
+        "Requires scope `prices:read`."
+    ),
+    responses=_GATEWAY_ERRORS,
+)
+async def get_offer_price_daily(
+    offer_id: Annotated[str, Path(description="Offer id (ULID) whose daily rollup to fetch.")],
+    _: Annotated[Principal, Depends(require(Scopes.PRICES_READ))],
+    downstream: Annotated[Downstream, Depends(get_downstream)],
+    from_: Annotated[
+        str | None,
+        Query(alias="from", description="Include days from this ISO-8601 UTC timestamp."),
+    ] = None,
+    to: Annotated[
+        str | None, Query(description="Include days up to this ISO-8601 UTC timestamp.")
+    ] = None,
+) -> Response:
+    resp = await downstream.request(
+        "price_history",
+        "GET",
+        "/v1/price-history/daily",
+        params={"offer_id": offer_id, "from": from_, "to": to},
+    )
+    return _relay(resp)
+
+
+# ----------------------------------------------------------------------------- search
+@router.post(
+    "/search/hybrid",
+    operation_id="hybridSearch",
+    summary="Hybrid search over supplier products",
+    description=(
+        "Free-text search over supplier products: lexical (full-text), dense-vector and "
+        "learned-sparse retrieval fused with RRF, then cross-encoder reranked. Works across "
+        "languages. Returns scored supplier products; use their canonical_product_id (via "
+        "GET /v1/products/{id}) to hop to the canonical card. Requires scope `search:read`."
+    ),
+    responses=_GATEWAY_ERRORS,
+)
+async def hybrid_search(
+    body: HybridSearchIn,
+    _: Annotated[Principal, Depends(require(Scopes.SEARCH_READ))],
+    downstream: Annotated[Downstream, Depends(get_downstream)],
+) -> Response:
+    resp = await downstream.request("search", "POST", "/v1/search/hybrid", json=body.model_dump())
+    return _relay(resp)
+
+
+@router.post(
+    "/search/canonical",
+    operation_id="canonicalHybridSearch",
+    summary="Hybrid search over canonical products",
+    description=(
+        "Free-text search over canonical (platform) product cards — same hybrid pipeline "
+        "(lexical + dense + sparse, RRF-fused, reranked) but returning canonical_product_ids. "
+        "Use it when you want one result per platform product instead of per supplier "
+        "version. Requires scope `search:read`."
+    ),
+    responses=_GATEWAY_ERRORS,
+)
+async def canonical_hybrid_search(
+    body: HybridSearchIn,
+    _: Annotated[Principal, Depends(require(Scopes.SEARCH_READ))],
+    downstream: Annotated[Downstream, Depends(get_downstream)],
+) -> Response:
+    resp = await downstream.request(
+        "search", "POST", "/v1/search/canonical", json=body.model_dump()
     )
     return _relay(resp)
 

@@ -426,6 +426,7 @@ services:
       API_GATEWAY_PRICE_HISTORY_BASE_URL: http://price-history:8000
       API_GATEWAY_MATCHING_BASE_URL: http://matching:8000
       API_GATEWAY_SYNC_ORCHESTRATOR_BASE_URL: http://sync-orchestrator:8000
+      API_GATEWAY_SEARCH_BASE_URL: http://search:8000
       API_GATEWAY_OTLP_ENDPOINT: http://otel-collector:4317
       # Browser origins allowed to call the gateway (curation-ui: static host + Vite dev server).
       API_GATEWAY_CORS_ALLOW_ORIGINS: '["http://localhost:8088","http://localhost:5173"]'
@@ -434,7 +435,7 @@ services:
       API_GATEWAY_PRINCIPALS: "${API_GATEWAY_PRINCIPALS:-{}}"
     # Host 8080 is reserved on some machines (e.g. Windows winnat); override with API_GATEWAY_PORT.
     ports: ["${API_GATEWAY_PORT:-8080}:8000"]
-    depends_on: [catalog, offer, price-history, matching, sync-orchestrator]
+    depends_on: [catalog, offer, price-history, matching, sync-orchestrator, search]
 
   mcp-gateway:
     build: {context: .., dockerfile: services/mcp-gateway/Dockerfile}

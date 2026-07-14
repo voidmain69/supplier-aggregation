@@ -17,8 +17,9 @@ is ever in config. In production the principal store is backed by Vault/DB.
 |---|---|
 | `catalog:read` | list/get supplier products + canonical products |
 | `offers:read` | list offers / best offer |
-| `prices:read` | price history + stats |
+| `prices:read` | price history + stats + daily rollup |
 | `matching:curate` | curation queue/stats/decisions + confirm/reject/create-new/merge |
+| `search:read` | hybrid search over supplier + canonical products |
 | `sync:read` | sync-account state + manual trigger |
 | `accounts:financial:read` | (reserved) account financial terms |
 
@@ -29,7 +30,8 @@ is ever in config. In production the principal store is backed by Vault/DB.
 | GET | `/products` · `/products/{id}` | `catalog:read` | catalog |
 | GET | `/canonical-products` · `/canonical-products/{id}` | `catalog:read` | catalog |
 | GET | `/products/{id}/offers` · `/products/{id}/best-offer` | `offers:read` | offer |
-| GET | `/offers/{id}/price-history` · `.../stats` | `prices:read` | price-history |
+| GET | `/offers/{id}/price-history` · `.../stats` · `.../daily` | `prices:read` | price-history |
+| POST | `/search/hybrid` · `/search/canonical` | `search:read` | search |
 | GET | `/curation/queue` · `/curation/stats` · `/curation/decisions` | `matching:curate` | matching |
 | POST | `/curation/links/{id}/confirm` · `.../reject` · `.../create-new` | `matching:curate` | matching |
 | POST | `/canonical-products/{id}/merge` | `matching:curate` | matching |

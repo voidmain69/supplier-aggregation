@@ -38,3 +38,22 @@ class MergeCanonicalIn(BaseModel):
     source_canonical_product_id: str = Field(
         description="The canonical to merge FROM; it is removed and its links move to the target."
     )
+
+
+class HybridSearchIn(BaseModel):
+    """Free-text search request (mirrors the search service's HybridSearchRequest)."""
+
+    query: str = Field(
+        min_length=1,
+        description="Free-text query in any language; product names, specs and codes all work.",
+    )
+    limit: int = Field(
+        default=20, ge=1, le=100, description="Max results to return (1-100, default 20)."
+    )
+    pool: int = Field(
+        default=50,
+        ge=1,
+        le=200,
+        description="Candidates fetched per retrieval method before rank fusion (1-200, "
+        "default 50). Raise it for better recall at higher latency.",
+    )

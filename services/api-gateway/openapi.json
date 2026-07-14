@@ -771,6 +771,300 @@
         ]
       }
     },
+    "/v1/offers/{offer_id}/price-history/daily": {
+      "get": {
+        "tags": [
+          "gateway"
+        ],
+        "summary": "Daily price rollup for an offer",
+        "description": "Per-day price buckets (count/min/max/avg/last in UAH) for one offer over a period. Use it to chart price dynamics without fetching every raw price point. Requires scope `prices:read`.",
+        "operationId": "getOfferPriceDaily",
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Offer id (ULID) whose daily rollup to fetch.",
+              "title": "Offer Id"
+            },
+            "description": "Offer id (ULID) whose daily rollup to fetch."
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Include days from this ISO-8601 UTC timestamp.",
+              "title": "From"
+            },
+            "description": "Include days from this ISO-8601 UTC timestamp."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Include days up to this ISO-8601 UTC timestamp.",
+              "title": "To"
+            },
+            "description": "Include days up to this ISO-8601 UTC timestamp."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required scope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-principal rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "A downstream service was unreachable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/search/hybrid": {
+      "post": {
+        "tags": [
+          "gateway"
+        ],
+        "summary": "Hybrid search over supplier products",
+        "description": "Free-text search over supplier products: lexical (full-text), dense-vector and learned-sparse retrieval fused with RRF, then cross-encoder reranked. Works across languages. Returns scored supplier products; use their canonical_product_id (via GET /v1/products/{id}) to hop to the canonical card. Requires scope `search:read`.",
+        "operationId": "hybridSearch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HybridSearchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required scope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-principal rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "A downstream service was unreachable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/search/canonical": {
+      "post": {
+        "tags": [
+          "gateway"
+        ],
+        "summary": "Hybrid search over canonical products",
+        "description": "Free-text search over canonical (platform) product cards — same hybrid pipeline (lexical + dense + sparse, RRF-fused, reranked) but returning canonical_product_ids. Use it when you want one result per platform product instead of per supplier version. Requires scope `search:read`.",
+        "operationId": "canonicalHybridSearch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HybridSearchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required scope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-principal rate limit exceeded.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "A downstream service was unreachable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/canonical-products": {
       "get": {
         "tags": [
@@ -1927,6 +2221,38 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HybridSearchIn": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Free-text query in any language; product names, specs and codes all work."
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Max results to return (1-100, default 20).",
+            "default": 20
+          },
+          "pool": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Pool",
+            "description": "Candidates fetched per retrieval method before rank fusion (1-200, default 50). Raise it for better recall at higher latency.",
+            "default": 50
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "HybridSearchIn",
+        "description": "Free-text search request (mirrors the search service's HybridSearchRequest)."
       },
       "MergeCanonicalIn": {
         "properties": {
