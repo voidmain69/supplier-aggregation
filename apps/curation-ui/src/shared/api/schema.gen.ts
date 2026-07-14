@@ -133,7 +133,7 @@ export interface paths {
         };
         /**
          * List canonical products
-         * @description List canonical (platform) products, optionally filtered by normalized GTIN-14. Cursor-paginated. Use it to resolve the canonical product a match suggestion points at, or to browse the confirmed catalog. Requires scope `catalog:read`.
+         * @description List canonical (platform) product cards, optionally filtered by normalized GTIN-14. Cursor-paginated. Served by the catalog service — the owner of the canonical card (ADR-0012); each card includes merged attributes and member supplier_product_ids. Requires scope `catalog:read`.
          */
         get: operations["listCanonicalProducts"];
         put?: never;
@@ -153,7 +153,7 @@ export interface paths {
         };
         /**
          * Get one canonical product
-         * @description Fetch a single canonical product by its internal canonical_product_id (ULID). Use it to render the candidate side of a match review. Requires scope `catalog:read`.
+         * @description Fetch a single canonical product card by its internal canonical_product_id (ULID), including merged attributes and member supplier_product_ids. Served by the catalog service — the owner of the canonical card (ADR-0012). Use it to render the candidate side of a match review. Requires scope `catalog:read`.
          */
         get: operations["getCanonicalProduct"];
         put?: never;

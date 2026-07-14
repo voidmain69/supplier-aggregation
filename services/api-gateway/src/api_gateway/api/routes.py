@@ -221,9 +221,10 @@ async def get_offer_price_stats(
     operation_id="listCanonicalProducts",
     summary="List canonical products",
     description=(
-        "List canonical (platform) products, optionally filtered by normalized GTIN-14. "
-        "Cursor-paginated. Use it to resolve the canonical product a match suggestion points "
-        "at, or to browse the confirmed catalog. Requires scope `catalog:read`."
+        "List canonical (platform) product cards, optionally filtered by normalized GTIN-14. "
+        "Cursor-paginated. Served by the catalog service — the owner of the canonical card "
+        "(ADR-0012); each card includes merged attributes and member supplier_product_ids. "
+        "Requires scope `catalog:read`."
     ),
     responses=_GATEWAY_ERRORS,
 )
@@ -239,7 +240,7 @@ async def list_canonical_products(
     limit: Annotated[int, Query(ge=1, le=200, description="Max items per page (1-200).")] = 50,
 ) -> Response:
     resp = await downstream.request(
-        "matching",
+        "catalog",
         "GET",
         "/v1/canonical-products",
         params={"gtin": gtin, "cursor": cursor, "limit": limit},
@@ -252,8 +253,10 @@ async def list_canonical_products(
     operation_id="getCanonicalProduct",
     summary="Get one canonical product",
     description=(
-        "Fetch a single canonical product by its internal canonical_product_id (ULID). Use it "
-        "to render the candidate side of a match review. Requires scope `catalog:read`."
+        "Fetch a single canonical product card by its internal canonical_product_id (ULID), "
+        "including merged attributes and member supplier_product_ids. Served by the catalog "
+        "service — the owner of the canonical card (ADR-0012). Use it to render the candidate "
+        "side of a match review. Requires scope `catalog:read`."
     ),
     responses={**_GATEWAY_ERRORS, **_NOT_FOUND},
 )
@@ -263,7 +266,7 @@ async def get_canonical_product(
     downstream: Annotated[Downstream, Depends(get_downstream)],
 ) -> Response:
     resp = await downstream.request(
-        "matching", "GET", f"/v1/canonical-products/{canonical_product_id}"
+        "catalog", "GET", f"/v1/canonical-products/{canonical_product_id}"
     )
     return _relay(resp)
 

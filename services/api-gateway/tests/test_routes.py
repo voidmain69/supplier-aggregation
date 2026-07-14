@@ -82,7 +82,7 @@ async def test_reject_link__forwards_operator_id_from_principal(
     assert sent.headers["x-operator-id"] == "agent:test"
 
 
-async def test_list_canonical_products__forwards_to_matching(
+async def test_list_canonical_products__forwards_to_catalog(
     client: ClientFactory, backend: Any, auth: Headers
 ) -> None:
     async with client(S.CATALOG_READ) as c:
@@ -91,17 +91,18 @@ async def test_list_canonical_products__forwards_to_matching(
         )
     assert resp.status_code == 200
     sent = backend.requests[-1]
-    assert str(sent.url).startswith("http://matching.test/v1/canonical-products")
+    # Canonical reads are served by catalog — the card owner (ADR-0012), not matching.
+    assert str(sent.url).startswith("http://catalog.test/v1/canonical-products")
     assert sent.url.params["gtin"] == "04006381333931"
 
 
-async def test_get_canonical_product__forwards_to_matching(
+async def test_get_canonical_product__forwards_to_catalog(
     client: ClientFactory, backend: Any, auth: Headers
 ) -> None:
     async with client(S.CATALOG_READ) as c:
         await c.get("/v1/canonical-products/01JCANON", headers=auth)
     sent = backend.requests[-1]
-    assert str(sent.url) == "http://matching.test/v1/canonical-products/01JCANON"
+    assert str(sent.url) == "http://catalog.test/v1/canonical-products/01JCANON"
 
 
 async def test_create_new__forwards_body_and_operator_id(
