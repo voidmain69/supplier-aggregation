@@ -13,7 +13,7 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 
 from mcp_gateway import tools
-from mcp_gateway.clients import CatalogClient, OfferClient, PriceHistoryClient
+from mcp_gateway.clients import CatalogClient, OfferClient, PriceHistoryClient, SearchClient
 from mcp_gateway.settings import Settings
 
 
@@ -23,6 +23,7 @@ def build_server(settings: Settings, *, http: httpx.AsyncClient | None = None) -
     catalog = CatalogClient(settings.catalog_base_url, client)
     offer = OfferClient(settings.offer_base_url, client)
     price_history = PriceHistoryClient(settings.price_history_base_url, client)
+    search = SearchClient(settings.search_base_url, client)
 
     mcp: FastMCP = FastMCP("supplier-aggregation")
 
@@ -81,5 +82,34 @@ def build_server(settings: Settings, *, http: httpx.AsyncClient | None = None) -
         """Cheapest offer for a canonical product across ALL suppliers and accounts.
         Use this when you have a canonical product and want the best price anywhere."""
         return await tools.best_offer_for_canonical(catalog, offer, canonical_product_id)
+
+    @mcp.tool()
+    async def find_products(query: str, limit: int = 20) -> dict[str, Any]:
+        """Find supplier products by free-text meaning (names, specs, codes; any language).
+        Hybrid retrieval (full-text + vectors) with reranking — use it when you don't have
+        an id or GTIN. Returns scored hits with supplier_product_id to drill into."""
+        return await tools.find_products(search, query, limit=limit)
+
+    @mcp.tool()
+    async def find_canonical_products(query: str, limit: int = 20) -> dict[str, Any]:
+        """Free-text search over canonical (platform) products — one hit per product
+        instead of one per supplier version. Returns canonical_product_id hits; feed one
+        into best_offer_for_canonical to price it."""
+        return await tools.find_canonical_products(search, query, limit=limit)
+
+    @mcp.tool()
+    async def get_price_daily(
+        offer_id: str, from_: str | None = None, to: str | None = None
+    ) -> dict[str, Any]:
+        """Per-day price buckets (count/min/max/avg/last in UAH) for one offer over an
+        optional ISO-8601 UTC range. Ideal for charting or reasoning about price dynamics
+        without fetching every raw point."""
+        return await tools.get_price_daily(price_history, offer_id, from_=from_, to=to)
+
+    @mcp.tool()
+    async def best_price_for_query(query: str) -> dict[str, Any]:
+        """One-shot "what would this cost": free-text query -> best-matching canonical
+        product -> its cheapest offer across ALL suppliers and accounts."""
+        return await tools.best_price_for_query(search, catalog, offer, query)
 
     return mcp

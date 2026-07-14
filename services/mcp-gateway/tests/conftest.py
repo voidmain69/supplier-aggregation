@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx
 import pytest
-from mcp_gateway.clients import CatalogClient, OfferClient, PriceHistoryClient
+from mcp_gateway.clients import CatalogClient, OfferClient, PriceHistoryClient, SearchClient
 
 _KNOWN_OFFER = "01J000000000000000OFFER1"
 _PRICE_POINTS = [
@@ -37,6 +38,39 @@ _OFFER = {
     "price_uah": "9900.0000",
 }
 _CANONICAL = "01J0000000000000000CAN01"
+_DAILY = [
+    {
+        "day": "2026-07-10",
+        "count": 1,
+        "min_uah": "9900.0000",
+        "max_uah": "9900.0000",
+        "avg_uah": "9900.0000",
+        "last_uah": "9900.0000",
+    },
+    {
+        "day": "2026-07-11",
+        "count": 1,
+        "min_uah": "9500.0000",
+        "max_uah": "9500.0000",
+        "avg_uah": "9500.0000",
+        "last_uah": "9500.0000",
+    },
+]
+_SEARCH_HIT = {
+    "supplier_product_id": "01J0000000000000000PROD1",
+    "supplier_code": "brain",
+    "name": "ASUS TUF GAMING B850-PLUS WIFI",
+    "brand": "ASUS",
+    "gtin": "04711387781609",
+    "score": 0.93,
+}
+_CANONICAL_HIT = {
+    "canonical_product_id": _CANONICAL,
+    "title": "ASUS TUF GAMING B850-PLUS WIFI",
+    "brand": "ASUS",
+    "gtin": "04711387781609",
+    "score": 0.91,
+}
 _PRODUCT2 = {**_PRODUCT, "supplier_product_id": "01J0000000000000000PROD2", "supplier_code": "acme"}
 _OFFER2 = {
     **_OFFER,
@@ -82,10 +116,21 @@ class FakeBackends:
             oid = request.url.params.get("offer_id")
             stats = _PRICE_STATS if oid == _KNOWN_OFFER else {"offer_id": oid, "count": 0}
             return httpx.Response(200, json=stats)
+        if path == "/v1/price-history/daily":
+            oid = request.url.params.get("offer_id")
+            return httpx.Response(200, json=_DAILY if oid == _KNOWN_OFFER else [])
         if path == "/v1/price-history":
             oid = request.url.params.get("offer_id")
             items = _PRICE_POINTS if oid == _KNOWN_OFFER else []
             return httpx.Response(200, json={"items": items, "next_cursor": None})
+        if path == "/v1/search/hybrid":
+            body = json.loads(request.content)
+            hits = [_SEARCH_HIT] if "asus" in body["query"].lower() else []
+            return httpx.Response(200, json=hits[: body.get("limit", 20)])
+        if path == "/v1/search/canonical":
+            body = json.loads(request.content)
+            hits = [_CANONICAL_HIT] if "asus" in body["query"].lower() else []
+            return httpx.Response(200, json=hits[: body.get("limit", 20)])
         return httpx.Response(404, json={"type": "x/not-found", "status": 404})
 
 
@@ -112,6 +157,11 @@ def offer(http: httpx.AsyncClient) -> OfferClient:
 @pytest.fixture
 def price_history(http: httpx.AsyncClient) -> PriceHistoryClient:
     return PriceHistoryClient("http://price-history", http)
+
+
+@pytest.fixture
+def search(http: httpx.AsyncClient) -> SearchClient:
+    return SearchClient("http://search", http)
 
 
 @pytest.fixture

@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     catalog_base_url: str = "http://localhost:8081"
     offer_base_url: str = "http://localhost:8082"
     price_history_base_url: str = "http://localhost:8083"
+    search_base_url: str = "http://localhost:8086"
     request_timeout_seconds: float = 10.0
 
     otlp_endpoint: str | None = None

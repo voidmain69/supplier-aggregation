@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from mcp_gateway import tools
-from mcp_gateway.clients import CatalogClient, OfferClient, PriceHistoryClient
+from mcp_gateway.clients import CatalogClient, OfferClient, PriceHistoryClient, SearchClient
 
 _PROD = "01J0000000000000000PROD1"
 _OFFER_ID = "01J000000000000000OFFER1"
@@ -89,3 +89,51 @@ async def test_get_offer_price_stats__aggregates(price_history: PriceHistoryClie
     assert stats["count"] == 2
     assert stats["min_uah"] == "9500.0000"
     assert stats["last_uah"] == "9500.0000"
+
+
+async def test_get_price_daily__returns_day_buckets(price_history: PriceHistoryClient) -> None:
+    result = await tools.get_price_daily(price_history, _OFFER_ID)
+    assert result["offer_id"] == _OFFER_ID
+    assert [d["day"] for d in result["days"]] == ["2026-07-10", "2026-07-11"]
+    assert result["days"][1]["min_uah"] == "9500.0000"
+
+
+async def test_get_price_daily__unknown_offer_is_empty(
+    price_history: PriceHistoryClient,
+) -> None:
+    result = await tools.get_price_daily(price_history, "nope")
+    assert result["days"] == []
+
+
+async def test_find_products__returns_scored_hits(search: SearchClient) -> None:
+    result = await tools.find_products(search, "asus b850 motherboard")
+    assert result["query"] == "asus b850 motherboard"
+    assert result["hits"][0]["supplier_product_id"] == _PROD
+    assert result["hits"][0]["score"] > 0
+
+
+async def test_find_products__no_match_is_empty(search: SearchClient) -> None:
+    result = await tools.find_products(search, "no such thing")
+    assert result["hits"] == []
+
+
+async def test_find_canonical_products__returns_canonical_hits(search: SearchClient) -> None:
+    result = await tools.find_canonical_products(search, "asus b850")
+    assert result["hits"][0]["canonical_product_id"] == "01J0000000000000000CAN01"
+
+
+async def test_best_price_for_query__search_to_cheapest_offer(
+    search: SearchClient, catalog: CatalogClient, offer: OfferClient
+) -> None:
+    result = await tools.best_price_for_query(search, catalog, offer, "asus b850")
+    assert result["found"] is True
+    assert result["matched_canonical"]["canonical_product_id"] == "01J0000000000000000CAN01"
+    # PROD2 (acme) at 9500 UAH beats PROD1 (brain) at 9900 — cheapest across suppliers wins.
+    assert result["best_offer"]["offer_id"] == "01J000000000000000OFFER2"
+
+
+async def test_best_price_for_query__no_search_match(
+    search: SearchClient, catalog: CatalogClient, offer: OfferClient
+) -> None:
+    result = await tools.best_price_for_query(search, catalog, offer, "no such thing")
+    assert result["found"] is False
