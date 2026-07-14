@@ -7,6 +7,11 @@
 # and all pyproject.toml constraints are open ranges (>=), so there is nothing
 # for Dependabot to bump. If uv.lock is ever committed, add a `package-ecosystem:
 # uv` entry with `directory: "/"` to get lockfile update PRs.
+# Supply-chain safety: every ecosystem has a `cooldown` so a freshly published
+# version must age before Dependabot proposes it. This closes the window where
+# a hijacked package is auto-PR'd (and auto-merged — see dependabot-automerge.yml)
+# minutes after a malicious publish, before the ecosystem notices and yanks it.
+# Security updates (CVE fixes) intentionally bypass cooldown per Dependabot docs.
 version: 2
 updates:
   # CI workflow actions (.github/workflows/*)
@@ -19,6 +24,8 @@ updates:
       timezone: Europe/Kyiv
     commit-message:
       prefix: "chore(ci)"
+    cooldown:
+      default-days: 7
     groups:
       github-actions:
         patterns: ["*"]
@@ -34,6 +41,12 @@ updates:
     commit-message:
       prefix: "chore(curation-ui)"
     open-pull-requests-limit: 10
+    # npm is the highest-risk ecosystem for account-hijack publishes, and these
+    # PRs auto-merge, so age majors the longest.
+    cooldown:
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 7
     groups:
       # Minor + patch bumps land as one PR; majors stay individual so
       # breaking upgrades (React, Vite, ESLint, ...) get separate review.
@@ -54,6 +67,9 @@ updates:
       timezone: Europe/Kyiv
     commit-message:
       prefix: "chore(infra)"
+    # Image tags don't follow strict semver, so only the flat cooldown applies.
+    cooldown:
+      default-days: 7
     groups:
       docker-base-images:
         patterns: ["*"]
@@ -69,6 +85,8 @@ updates:
       timezone: Europe/Kyiv
     commit-message:
       prefix: "chore(infra)"
+    cooldown:
+      default-days: 7
     groups:
       compose-stack-images:
         patterns: ["*"]
