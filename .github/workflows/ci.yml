@@ -52,6 +52,11 @@ jobs:
       - name: OpenAPI lint (spectral)
         run: |
           if compgen -G "services/*/openapi.json" > /dev/null; then
+            # Cooldown for npx-resolved deps (mirrors the Dependabot cooldown policy):
+            # resolve versions as of 7 days ago so a freshly published transitive dep
+            # can't break CI — @asyncapi/specs 6.11.2 (2026-07-14, ESM/CJS mismatch)
+            # crashed spectral within a minute of publish.
+            export npm_config_before="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
             npx --yes @stoplight/spectral-cli lint "services/*/openapi.json" --ruleset .spectral.yaml
           else
             echo "no exported openapi.json yet — skipping"
