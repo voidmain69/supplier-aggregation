@@ -19,6 +19,7 @@ class Scopes:
     OFFERS_READ = "offers:read"
     PRICES_READ = "prices:read"
     MATCHING_CURATE = "matching:curate"
+    SEARCH_READ = "search:read"
     SYNC_READ = "sync:read"
     ACCOUNTS_FINANCIAL_READ = "accounts:financial:read"
 

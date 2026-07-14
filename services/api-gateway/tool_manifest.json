@@ -56,6 +56,33 @@
       "typical_latency_ms": 100
     },
     {
+      "name": "get_offer_price_daily",
+      "operation_id": "getOfferPriceDaily",
+      "when_to_use": "Get per-day price buckets (count/min/max/avg/last in UAH) for one offer — ideal for charting price dynamics over weeks or months.",
+      "when_not_to_use": "You need raw intra-day points (use get_offer_price_history) or a single aggregate over the whole period (use get_offer_price_stats).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 120
+    },
+    {
+      "name": "hybrid_search",
+      "operation_id": "hybridSearch",
+      "when_to_use": "Find supplier products by free-text meaning (names, specs, codes, any language) — lexical + vector retrieval, reranked.",
+      "when_not_to_use": "You already know an exact id or GTIN (use list_products / list_canonical_products filters), or you want one result per platform product (use canonical_hybrid_search).",
+      "safety": "read_only",
+      "cost_class": "moderate",
+      "typical_latency_ms": 400
+    },
+    {
+      "name": "canonical_hybrid_search",
+      "operation_id": "canonicalHybridSearch",
+      "when_to_use": "Free-text search that returns canonical (platform) products — one hit per product instead of per supplier version.",
+      "when_not_to_use": "You need supplier-level hits with supplier codes (use hybrid_search).",
+      "safety": "read_only",
+      "cost_class": "moderate",
+      "typical_latency_ms": 400
+    },
+    {
       "name": "get_curation_queue",
       "operation_id": "getCurationQueue",
       "when_to_use": "List supplier-to-canonical match suggestions awaiting an operator decision.",
