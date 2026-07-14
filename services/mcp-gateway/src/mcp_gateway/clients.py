@@ -1,4 +1,4 @@
-"""Thin HTTP clients for the internal catalog and offer APIs.
+"""Thin HTTP clients for the internal catalog, offer, price-history and search APIs.
 
 The gateway reads from other services over HTTP (never their DB). These wrap the endpoints
 the tools need; a 404 becomes ``None`` so tools can report "not found" cleanly. (Generated
@@ -105,3 +105,39 @@ class PriceHistoryClient:
         resp = await self._http.get(f"{self._base}/v1/price-history/stats", params=params)
         resp.raise_for_status()
         return dict(resp.json())
+
+    async def price_daily(
+        self, offer_id: str, *, from_: str | None = None, to: str | None = None
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"offer_id": offer_id}
+        if from_ is not None:
+            params["from"] = from_
+        if to is not None:
+            params["to"] = to
+        resp = await self._http.get(f"{self._base}/v1/price-history/daily", params=params)
+        resp.raise_for_status()
+        return list(resp.json())
+
+
+class SearchClient:
+    def __init__(self, base_url: str, http: httpx.AsyncClient) -> None:
+        self._base = base_url.rstrip("/")
+        self._http = http
+
+    async def hybrid(self, query: str, *, limit: int = 20, pool: int = 50) -> list[dict[str, Any]]:
+        resp = await self._http.post(
+            f"{self._base}/v1/search/hybrid",
+            json={"query": query, "limit": limit, "pool": pool},
+        )
+        resp.raise_for_status()
+        return list(resp.json())
+
+    async def canonical(
+        self, query: str, *, limit: int = 20, pool: int = 50
+    ) -> list[dict[str, Any]]:
+        resp = await self._http.post(
+            f"{self._base}/v1/search/canonical",
+            json={"query": query, "limit": limit, "pool": pool},
+        )
+        resp.raise_for_status()
+        return list(resp.json())

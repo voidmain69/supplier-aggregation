@@ -52,7 +52,12 @@
   (3 ретрівери, [ADR-0011](docs/adr/0011-hybrid-search-rerank.md)), **PostgreSQL FTS
   (`tsvector`)-ранжування** лексики, та **індексація канонічних** товарів з `catalog.product.updated`
   (окремий `canonical_document` + ендпоінт `/v1/search/canonical`, що повертає canonical ids).
-- **Пошук/price-history через gateway**: виставити `search` і денний rollup через api-gateway та mcp-gateway.
+- **Пошук/price-history через gateway** (доставлено 2026-07-14): api-gateway проксіює
+  `POST /v1/search/hybrid` і `POST /v1/search/canonical` (новий scope `search:read`) та
+  `GET /v1/offers/{id}/price-history/daily`; mcp-gateway отримав інструменти `find_products`,
+  `find_canonical_products`, `get_price_daily` і агрегат `best_price_for_query` (запит → канонічний
+  топ-збіг → найдешевший офер). Канонічні reads через gateway тепер обслуговує **catalog**
+  (власник картки, [ADR-0012](docs/adr/0012-catalog-owns-canonical.md)); merge лишився на matching.
 
 ---
 

@@ -13,6 +13,10 @@ _EXPECTED_TOOLS = {
     "get_offer_price_stats",
     "get_product_with_best_offer",
     "best_offer_for_canonical",
+    "find_products",
+    "find_canonical_products",
+    "get_price_daily",
+    "best_price_for_query",
 }
 
 

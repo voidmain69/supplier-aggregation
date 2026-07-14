@@ -10,7 +10,7 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from mcp_gateway.clients import CatalogClient, OfferClient, PriceHistoryClient
+from mcp_gateway.clients import CatalogClient, OfferClient, PriceHistoryClient, SearchClient
 
 
 def _uah(offer: dict[str, Any]) -> Decimal | None:
@@ -90,6 +90,48 @@ async def get_product_with_best_offer(
         return {"found": False, "supplier_product_id": supplier_product_id}
     best = await offer.best_offer(supplier_product_id)
     return {"found": True, "product": product, "best_offer": best}
+
+
+async def find_products(search: SearchClient, query: str, *, limit: int = 20) -> dict[str, Any]:
+    """Free-text hybrid search over supplier products; returns scored hits."""
+    hits = await search.hybrid(query, limit=limit)
+    return {"query": query, "hits": hits}
+
+
+async def find_canonical_products(
+    search: SearchClient, query: str, *, limit: int = 20
+) -> dict[str, Any]:
+    """Free-text hybrid search over canonical (platform) products; one hit per product."""
+    hits = await search.canonical(query, limit=limit)
+    return {"query": query, "hits": hits}
+
+
+async def get_price_daily(
+    price_history: PriceHistoryClient,
+    offer_id: str,
+    *,
+    from_: str | None = None,
+    to: str | None = None,
+) -> dict[str, Any]:
+    """Per-day price buckets (count/min/max/avg/last in UAH) for one offer."""
+    days = await price_history.price_daily(offer_id, from_=from_, to=to)
+    return {"offer_id": offer_id, "days": days}
+
+
+async def best_price_for_query(
+    search: SearchClient, catalog: CatalogClient, offer: OfferClient, query: str
+) -> dict[str, Any]:
+    """Aggregate: free-text query -> best canonical match -> cheapest offer anywhere.
+
+    Searches canonical products, takes the top hit, and resolves its cheapest offer across
+    all suppliers and accounts — the "what would this cost me" one-shot.
+    """
+    hits = await search.canonical(query, limit=1)
+    if not hits:
+        return {"found": False, "query": query}
+    top = hits[0]
+    result = await best_offer_for_canonical(catalog, offer, top["canonical_product_id"])
+    return {**result, "query": query, "matched_canonical": top}
 
 
 async def best_offer_for_canonical(
