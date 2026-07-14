@@ -19,6 +19,8 @@ Two processes (separate deployments):
 |---|---|---|
 | GET | `/v1/supplier-products` | List supplier products (cursor pagination, `supplier` filter) |
 | GET | `/v1/supplier-products/{supplier_product_id}` | Fetch one; 404 as RFC 9457 problem+json |
+| GET | `/v1/canonical-products` | List canonical product cards (cursor pagination, `gtin` filter) |
+| GET | `/v1/canonical-products/{canonical_product_id}` | Fetch one card incl. merged attributes + member ids |
 
 Errors are `application/problem+json`; every field/param carries an LLM-quality description.
 
