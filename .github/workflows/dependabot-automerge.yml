@@ -1,0 +1,23 @@
+name: Dependabot auto-merge
+
+on: pull_request
+
+# Dependabot-triggered runs get a read-only GITHUB_TOKEN unless permissions
+# are declared explicitly (docs: "Automating Dependabot with GitHub Actions").
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    steps:
+      # Queues the PR for auto-merge; GitHub merges it only after every
+      # required check on develop (lint-and-check, tests, curation-ui) passes.
+      # A red check leaves the PR open for manual review — nothing is forced.
+      - name: Enable auto-merge (squash)
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
