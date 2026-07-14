@@ -27,7 +27,7 @@ is ever in config. In production the principal store is backed by Vault/DB.
 | Method | Path | Scope | Forwards to |
 |---|---|---|---|
 | GET | `/products` · `/products/{id}` | `catalog:read` | catalog |
-| GET | `/canonical-products` · `/canonical-products/{id}` | `catalog:read` | matching |
+| GET | `/canonical-products` · `/canonical-products/{id}` | `catalog:read` | catalog |
 | GET | `/products/{id}/offers` · `/products/{id}/best-offer` | `offers:read` | offer |
 | GET | `/offers/{id}/price-history` · `.../stats` | `prices:read` | price-history |
 | GET | `/curation/queue` · `/curation/stats` · `/curation/decisions` | `matching:curate` | matching |
