@@ -9,19 +9,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from catalog.adapters.repository import (
     canonical_ids_for,
+    get_canonical_product,
     get_supplier_product,
+    list_canonical_products,
     list_supplier_products,
 )
 from catalog.api.deps import get_session
-from catalog.api.schemas import Problem, SupplierProductOut
+from catalog.api.schemas import CanonicalProductOut, Problem, SupplierProductOut
 from sa_core.errors import NotFoundError
 from sa_core.pagination import Page
 
 _NOT_FOUND: dict[int | str, dict[str, object]] = {
     404: {"model": Problem, "description": "No supplier product with that id."}
 }
+_CANONICAL_NOT_FOUND: dict[int | str, dict[str, object]] = {
+    404: {"model": Problem, "description": "No canonical product with that id."}
+}
 
 router = APIRouter(prefix="/v1", tags=["supplier-products"])
+canonical_router = APIRouter(prefix="/v1", tags=["canonical-products"])
 
 
 @router.get(
@@ -90,3 +96,57 @@ async def get_product(
         )
     canonical = await canonical_ids_for(session, [supplier_product_id])
     return SupplierProductOut.from_row(row, canonical_product_id=canonical.get(supplier_product_id))
+
+
+@canonical_router.get(
+    "/canonical-products",
+    operation_id="listCanonicalProducts",
+    summary="List canonical products",
+    description=(
+        "List canonical (platform) product cards the catalog owns, optionally filtered by "
+        "normalized GTIN-14. Cursor paginated: pass the returned next_cursor to fetch the "
+        "following page. Each card is the deterministic merge of its member supplier products."
+    ),
+    response_model=Page[CanonicalProductOut],
+)
+async def list_canonical(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    gtin: Annotated[
+        str | None, Query(description="Filter by normalized GTIN-14 (14 digits).")
+    ] = None,
+    cursor: Annotated[
+        str | None, Query(description="Opaque cursor from a previous response's next_cursor.")
+    ] = None,
+    limit: Annotated[
+        int, Query(ge=1, le=200, description="Max items per page (1-200, default 50).")
+    ] = 50,
+) -> Page[CanonicalProductOut]:
+    rows, next_cursor = await list_canonical_products(
+        session, gtin=gtin, cursor=cursor, limit=limit
+    )
+    return Page(items=[CanonicalProductOut.from_row(r) for r in rows], next_cursor=next_cursor)
+
+
+@canonical_router.get(
+    "/canonical-products/{canonical_product_id}",
+    operation_id="getCanonicalProduct",
+    summary="Get one canonical product",
+    description=(
+        "Fetch a single canonical product card by its internal canonical_product_id (ULID), "
+        "including merged attributes and the member supplier_product_ids."
+    ),
+    response_model=CanonicalProductOut,
+    responses=_CANONICAL_NOT_FOUND,
+)
+async def get_canonical(
+    canonical_product_id: Annotated[str, Path(description="Internal canonical_product_id (ULID).")],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CanonicalProductOut:
+    row = await get_canonical_product(session, canonical_product_id)
+    if row is None:
+        raise NotFoundError(
+            f"No canonical product with id {canonical_product_id}. "
+            "List ids via GET /v1/canonical-products.",
+            instance=f"/v1/canonical-products/{canonical_product_id}",
+        )
+    return CanonicalProductOut.from_row(row)

@@ -18,6 +18,24 @@
       "safety": "read_only",
       "cost_class": "cheap",
       "typical_latency_ms": 50
+    },
+    {
+      "name": "list_canonical_products",
+      "operation_id": "listCanonicalProducts",
+      "when_to_use": "Browse canonical (platform) product cards, or find the canonical product that aggregates a given GTIN-14.",
+      "when_not_to_use": "Fetching one card you already have the id for (use get_canonical_product), or free-text search (use the search service).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 100
+    },
+    {
+      "name": "get_canonical_product",
+      "operation_id": "getCanonicalProduct",
+      "when_to_use": "Fetch one canonical product card (merged title/brand/gtin/attributes plus member supplier_product_ids) by its ULID.",
+      "when_not_to_use": "Listing or GTIN lookup without an id (use list_canonical_products).",
+      "safety": "read_only",
+      "cost_class": "cheap",
+      "typical_latency_ms": 50
     }
   ]
 }

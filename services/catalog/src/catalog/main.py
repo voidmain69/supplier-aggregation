@@ -8,7 +8,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from sa_persistence.db import create_engine, create_session_factory
 
-from catalog.api.routes import router
+from catalog.api.routes import canonical_router, router
 from catalog.settings import Settings
 from sa_observability import bootstrap
 
@@ -26,4 +26,5 @@ def create_app() -> FastAPI:
     app.state.session_factory = create_session_factory(create_engine(settings.db_dsn))
     bootstrap(app, service_name="catalog", env=settings.env, otlp_endpoint=settings.otlp_endpoint)
     app.include_router(router)
+    app.include_router(canonical_router)
     return app

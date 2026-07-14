@@ -126,6 +126,36 @@ async def rebuild_canonical_card(
     return canonical, member_ids
 
 
+async def get_canonical_product(
+    session: AsyncSession, canonical_product_id: str
+) -> CanonicalProductRow | None:
+    return await session.get(CanonicalProductRow, canonical_product_id)
+
+
+async def list_canonical_products(
+    session: AsyncSession,
+    *,
+    gtin: str | None = None,
+    cursor: str | None = None,
+    limit: int = 50,
+) -> tuple[Sequence[CanonicalProductRow], str | None]:
+    """Return a page of canonical products (ordered by id) and the next cursor, if any."""
+    stmt = (
+        select(CanonicalProductRow).order_by(CanonicalProductRow.canonical_product_id).limit(limit)
+    )
+    if gtin is not None:
+        stmt = stmt.where(CanonicalProductRow.gtin == gtin)
+    if cursor is not None:
+        after = str(decode_cursor(cursor)["after"])
+        stmt = stmt.where(CanonicalProductRow.canonical_product_id > after)
+
+    rows = (await session.execute(stmt)).scalars().all()
+    next_cursor = (
+        encode_cursor({"after": rows[-1].canonical_product_id}) if len(rows) == limit else None
+    )
+    return rows, next_cursor
+
+
 async def canonical_ids_for(
     session: AsyncSession, supplier_product_ids: Sequence[str]
 ) -> dict[str, str]:

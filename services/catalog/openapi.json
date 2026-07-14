@@ -176,10 +176,231 @@
           }
         ]
       }
+    },
+    "/v1/canonical-products": {
+      "get": {
+        "tags": [
+          "canonical-products"
+        ],
+        "summary": "List canonical products",
+        "description": "List canonical (platform) product cards the catalog owns, optionally filtered by normalized GTIN-14. Cursor paginated: pass the returned next_cursor to fetch the following page. Each card is the deterministic merge of its member supplier products.",
+        "operationId": "listCanonicalProducts",
+        "parameters": [
+          {
+            "name": "gtin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by normalized GTIN-14 (14 digits).",
+              "title": "Gtin"
+            },
+            "description": "Filter by normalized GTIN-14 (14 digits)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous response's next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque cursor from a previous response's next_cursor."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Max items per page (1-200, default 50).",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Max items per page (1-200, default 50)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_CanonicalProductOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/canonical-products/{canonical_product_id}": {
+      "get": {
+        "tags": [
+          "canonical-products"
+        ],
+        "summary": "Get one canonical product",
+        "description": "Fetch a single canonical product card by its internal canonical_product_id (ULID), including merged attributes and the member supplier_product_ids.",
+        "operationId": "getCanonicalProduct",
+        "parameters": [
+          {
+            "name": "canonical_product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Internal canonical_product_id (ULID).",
+              "title": "Canonical Product Id"
+            },
+            "description": "Internal canonical_product_id (ULID)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanonicalProductOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No canonical product with that id.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
+      "CanonicalProductOut": {
+        "properties": {
+          "canonical_product_id": {
+            "type": "string",
+            "title": "Canonical Product Id",
+            "description": "Stable internal ULID of the canonical product."
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Canonical product title (deterministic merge of members)."
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand",
+            "description": "Brand/vendor name, if known."
+          },
+          "gtin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gtin",
+            "description": "Normalized GTIN-14 shared by the members, or null if none carries one."
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Card status; currently always 'confirmed'."
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes",
+            "description": "Merged attribute map from all member supplier products."
+          },
+          "supplier_product_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supplier Product Ids",
+            "description": "Member supplier products (ULIDs, sorted). Fetch each via GET /v1/supplier-products/{id} to compare supplier versions."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "When the card was last rebuilt (UTC)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "canonical_product_id",
+          "title",
+          "status",
+          "updated_at"
+        ],
+        "title": "CanonicalProductOut",
+        "description": "The canonical (platform) product card the catalog owns (ADR-0012)."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -192,6 +413,44 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "Page_CanonicalProductOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CanonicalProductOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "total_estimate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Estimate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "Page[CanonicalProductOut]"
       },
       "Page_SupplierProductOut_": {
         "properties": {
@@ -455,6 +714,9 @@
     }
   ],
   "tags": [
+    {
+      "name": "canonical-products"
+    },
     {
       "name": "supplier-products"
     }
