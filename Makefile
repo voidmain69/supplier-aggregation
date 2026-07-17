@@ -30,7 +30,15 @@ test-integration:
 check:
 	uv run python tools/check_conventions.py
 	uv run python tools/check_event_schemas.py
-	npx --yes @stoplight/spectral-cli lint "services/*/openapi.json" --ruleset .spectral.yaml || true
+	# Cooldown for npx-resolved deps — keep in sync with .github/workflows/ci.yml.
+	# This is the only floating install in the dev loop: npx resolves the whole spectral
+	# tree at run time, so a cold cache picks up whatever was published minutes ago.
+	# On 2026-07-14 that pulled @asyncapi/specs 6.11.2 (a compromised build, since
+	# unpublished) onto a developer machine, where it executed on import.
+	# GNU date (Linux/Git Bash) first, BSD date (macOS) as fallback.
+	export npm_config_before="$$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+		|| date -u -v-7d +%Y-%m-%dT%H:%M:%SZ)" && \
+		npx --yes @stoplight/spectral-cli lint "services/*/openapi.json" --ruleset .spectral.yaml || true
 
 contracts:
 	uv run python tools/gen_contracts.py
