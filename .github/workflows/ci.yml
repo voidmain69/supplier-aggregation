@@ -54,8 +54,12 @@ jobs:
           if compgen -G "services/*/openapi.json" > /dev/null; then
             # Cooldown for npx-resolved deps (mirrors the Dependabot cooldown policy):
             # resolve versions as of 7 days ago so a freshly published transitive dep
-            # can't break CI — @asyncapi/specs 6.11.2 (2026-07-14, ESM/CJS mismatch)
-            # crashed spectral within a minute of publish.
+            # can't reach this job. Do not remove — this is the last floating install
+            # in CI, and npx resolves the whole spectral tree at run time.
+            # History: @asyncapi/specs 6.11.2 (published 2026-07-14 08:30Z, since
+            # unpublished) was a compromised build that executed on import. It was first
+            # diagnosed here as an ESM/CJS mismatch — that crash was a side effect of the
+            # injected code, not the reason for this cooldown.
             export npm_config_before="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
             npx --yes @stoplight/spectral-cli lint "services/*/openapi.json" --ruleset .spectral.yaml
           else
